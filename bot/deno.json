@@ -1,6 +1,4 @@
 {
-  "name": "@currency-exchange/bot",
-  "version": "0.1.0",
   "tasks": {
     "dev": "deno run --allow-net --allow-env --env-file=.env --unstable-kv src/main.ts",
     "start": "deno run --allow-net --allow-env --unstable-kv src/main.ts",
