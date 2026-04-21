@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#0a0a0a"/>
+  <circle cx="256" cy="256" r="180" fill="#052e16"/>
+  <circle cx="256" cy="256" r="180" fill="none" stroke="#22c55e" stroke-width="10"/>
+  <path d="M176 176c50-50 110-50 160 0M336 336c-50 50-110 50-160 0"
+    stroke="#22c55e" stroke-width="26" stroke-linecap="round" fill="none"/>
+  <path d="M336 140v70h-70M176 372v-70h70"
+    stroke="#22c55e" stroke-width="26" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <text x="256" y="296" text-anchor="middle"
+    font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
+    font-size="140" font-weight="800" fill="#22c55e">$</text>
+</svg>
