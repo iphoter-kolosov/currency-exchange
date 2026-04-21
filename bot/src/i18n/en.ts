@@ -1,7 +1,7 @@
 export const en = {
   start: {
     greeting: (name: string) =>
-      `Hi ${name}! 👋\n\nI track currency rates in real time.\n\n• Type <b>100 usd eur</b> to convert\n• Type <b>eur usd</b> for the current rate\n• Use the menu below for watchlist, charts, and alerts`,
+      `Hey ${name} 👋\n\nI'll keep an eye on currency rates for you — live conversions, charts, and a heads-up when the market moves.\n\n<b>Quick try</b>\n• <code>100 usd eur</code> — convert\n• <code>eur usd</code> — current rate\n• <code>50€ in ₴</code> — symbols also work\n\nOr pick something from the menu 👇`,
     menu_convert: '💱 Convert',
     menu_watch: '👁 Watchlist',
     menu_chart: '📈 Chart',

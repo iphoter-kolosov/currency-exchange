@@ -4,6 +4,7 @@ export type Lang = 'en' | 'ru';
 
 export type UserPrefs = {
   lang: Lang;
+  onboarded: boolean;
   watchlist: string[];
   defaultBase: string;
   createdAt: number;
@@ -44,15 +45,18 @@ export async function getUser(userId: number, hintLang?: Lang): Promise<UserPref
   const k = await getKv();
   const entry = await k.get<UserPrefs>(K_USER(userId));
   if (entry.value) {
+    const user = entry.value;
+    if (user.onboarded === undefined) user.onboarded = false;
     const now = Date.now();
-    if (now - entry.value.lastActiveAt > 60_000) {
-      entry.value.lastActiveAt = now;
-      await k.set(K_USER(userId), entry.value);
+    if (now - user.lastActiveAt > 60_000) {
+      user.lastActiveAt = now;
+      await k.set(K_USER(userId), user);
     }
-    return entry.value;
+    return user;
   }
   const fresh: UserPrefs = {
     lang: hintLang ?? 'en',
+    onboarded: false,
     watchlist: DEFAULT_WATCHLIST.slice(),
     defaultBase: 'usd',
     createdAt: Date.now(),

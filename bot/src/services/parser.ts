@@ -1,4 +1,4 @@
-import { CURRENCIES, findCurrency, type Currency } from '../data/currencies.ts';
+import { findCurrency, type Currency } from '../data/currencies.ts';
 
 export type ParsedConvert = {
   kind: 'convert';
@@ -15,31 +15,42 @@ export type ParsedRate = {
 
 export type ParseResult = ParsedConvert | ParsedRate | { kind: 'unknown'; missing?: string };
 
-const SYMBOL_TO_CODE: Record<string, string> = {};
-for (const c of CURRENCIES) {
-  const s = c.symbol.toLowerCase();
-  if (!SYMBOL_TO_CODE[s]) SYMBOL_TO_CODE[s] = c.code;
-}
-SYMBOL_TO_CODE['$'] = 'usd';
-SYMBOL_TO_CODE['€'] = 'eur';
-SYMBOL_TO_CODE['£'] = 'gbp';
-SYMBOL_TO_CODE['¥'] = 'jpy';
-SYMBOL_TO_CODE['₽'] = 'rub';
-SYMBOL_TO_CODE['₴'] = 'uah';
-SYMBOL_TO_CODE['₺'] = 'try';
-SYMBOL_TO_CODE['₹'] = 'inr';
-SYMBOL_TO_CODE['₩'] = 'krw';
-SYMBOL_TO_CODE['₪'] = 'ils';
+const SYMBOL_TO_CODE: Record<string, string> = {
+  '$': 'usd',
+  '€': 'eur',
+  '£': 'gbp',
+  '¥': 'jpy',
+  '₽': 'rub',
+  '₴': 'uah',
+  '₺': 'try',
+  '₹': 'inr',
+  '₩': 'krw',
+  '₪': 'ils',
+  '₸': 'kzt',
+  '₼': 'azn',
+  '₾': 'gel',
+  '֏': 'amd',
+  '฿': 'thb',
+  '₫': 'vnd',
+  '₱': 'php',
+  '₦': 'ngn',
+  '₿': 'btc',
+  'Ξ': 'eth',
+  'ξ': 'eth',
+};
 
-const SYMBOL_RE = Object.keys(SYMBOL_TO_CODE)
-  .sort((a, b) => b.length - a.length)
+const SYMBOLS = Object.keys(SYMBOL_TO_CODE);
+const SYMBOL_CHARSET = SYMBOLS.join('');
+const SYMBOL_RE = SYMBOLS
   .map((s) => s.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&'))
   .join('|');
 
 const CONNECTORS = /\b(to|in|в|на|→|->|=)\b/gi;
 
+const TOKEN_CLEAN_RE = new RegExp(`[^a-zA-Zа-яА-ЯёЁ${SYMBOL_CHARSET}]`, 'g');
+
 function resolveToken(tok: string): Currency | null {
-  const clean = tok.replace(/[^a-zA-Zа-яА-ЯёЁ₽$€£¥₴₺₹₩₪₸₼₦]/g, '').toLowerCase();
+  const clean = tok.replace(TOKEN_CLEAN_RE, '').toLowerCase();
   if (!clean) return null;
   if (SYMBOL_TO_CODE[clean]) return findCurrency(SYMBOL_TO_CODE[clean]);
   return findCurrency(clean);
