@@ -27,11 +27,26 @@ export type Dict = {
     '6M': string;
     '1Y': string;
     '2Y': string;
+    custom: string;
+  };
+  customRange: {
+    title: string;
+    from: string;
+    to: string;
+    apply: string;
+    cancel: string;
+    invalid: string;
   };
   swap: string;
   from: string;
   to: string;
   empty: string;
+  onboarding: {
+    welcome: string;
+    subtitle: string;
+    chooseLanguage: string;
+    continue: string;
+  };
 };
 
 export const en: Dict = {
@@ -63,9 +78,24 @@ export const en: Dict = {
     '6M': '6M',
     '1Y': '1Y',
     '2Y': '2Y',
+    custom: 'Custom',
+  },
+  customRange: {
+    title: 'Custom date range',
+    from: 'From',
+    to: 'To',
+    apply: 'Apply',
+    cancel: 'Cancel',
+    invalid: 'Start date must be before end date',
   },
   swap: 'Swap',
   from: 'From',
   to: 'To',
   empty: 'No currencies yet. Tap + to add one.',
+  onboarding: {
+    welcome: 'Welcome',
+    subtitle: 'Live rates, charts, and a feel for where the market is going.',
+    chooseLanguage: 'Choose your language',
+    continue: 'Continue',
+  },
 };

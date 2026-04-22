@@ -1,5 +1,11 @@
 import { get as idbGet, set as idbSet } from 'idb-keyval';
-import { enumerateDates, rangeForTimeframe, toISODate, type Timeframe } from '../utils/dates';
+import {
+  enumerateDates,
+  rangeForCustom,
+  rangeForTimeframe,
+  toISODate,
+  type Timeframe,
+} from '../utils/dates';
 
 export type RateMap = Record<string, number>;
 
@@ -126,14 +132,11 @@ async function fetchForDate(base: string, date: string): Promise<Payload | null>
 
 export type SeriesPoint = { date: string; rate: number };
 
-export async function fetchSeries(
+async function fetchSeriesForDates(
   base: string,
   target: string,
-  tf: Timeframe,
+  dates: string[],
 ): Promise<SeriesPoint[]> {
-  const range = rangeForTimeframe(tf);
-  const dates = enumerateDates(range).map(toISODate);
-
   const today = toISODate(new Date());
   const results = await Promise.all(
     dates.map(async (date) => {
@@ -158,4 +161,25 @@ export async function fetchSeries(
   }
   series.sort((a, b) => a.date.localeCompare(b.date));
   return series;
+}
+
+export async function fetchSeries(
+  base: string,
+  target: string,
+  tf: Timeframe,
+): Promise<SeriesPoint[]> {
+  const range = rangeForTimeframe(tf);
+  const dates = enumerateDates(range).map(toISODate);
+  return fetchSeriesForDates(base, target, dates);
+}
+
+export async function fetchSeriesRange(
+  base: string,
+  target: string,
+  fromIso: string,
+  toIso: string,
+): Promise<SeriesPoint[]> {
+  const range = rangeForCustom(fromIso, toIso);
+  const dates = enumerateDates(range).map(toISODate);
+  return fetchSeriesForDates(base, target, dates);
 }

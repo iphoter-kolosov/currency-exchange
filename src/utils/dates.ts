@@ -9,6 +9,11 @@ export function toISODate(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+export function fromISODate(iso: string): Date {
+  const [y, m, d] = iso.split('-').map((n) => parseInt(n, 10));
+  return new Date(Date.UTC(y, m - 1, d));
+}
+
 export function addDays(d: Date, days: number): Date {
   const copy = new Date(d);
   copy.setUTCDate(copy.getUTCDate() + days);
@@ -35,6 +40,18 @@ export function rangeForTimeframe(tf: Timeframe, now: Date = new Date()): Range 
     case '2Y':
       return { from: addDays(today, -730), to: today, step: 10, maxPoints: 74 };
   }
+}
+
+/** Build a sampled Range from two arbitrary ISO dates. Step size adapts
+ * so large windows don't fire hundreds of requests against the rate
+ * API — capped at ~80 points. */
+export function rangeForCustom(fromIso: string, toIso: string): Range {
+  const from = fromISODate(fromIso);
+  const to = fromISODate(toIso);
+  const days = Math.max(1, Math.round((to.getTime() - from.getTime()) / (24 * 60 * 60 * 1000)));
+  const maxPoints = 80;
+  const step = Math.max(1, Math.ceil(days / maxPoints));
+  return { from, to, step, maxPoints };
 }
 
 export function enumerateDates(range: Range): Date[] {

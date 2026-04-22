@@ -6,6 +6,8 @@ import type { Timeframe } from '../utils/dates';
 
 type View = 'convert' | 'chart';
 
+export type CustomRange = { from: string; to: string };
+
 export type AppState = {
   selectedCodes: string[];
   activeCode: string;
@@ -16,8 +18,10 @@ export type AppState = {
   chartBase: string;
   chartTarget: string;
   timeframe: Timeframe;
+  customRange: CustomRange | null;
 
   language: Language;
+  onboarded: boolean;
 
   setActive: (code: string) => void;
   setAmount: (amount: number) => void;
@@ -29,7 +33,9 @@ export type AppState = {
   setChartPair: (base: string, target: string) => void;
   swapChartPair: () => void;
   setTimeframe: (tf: Timeframe) => void;
+  setCustomRange: (range: CustomRange | null) => void;
   setLanguage: (lang: Language) => void;
+  setOnboarded: (onboarded: boolean) => void;
 };
 
 function detectLanguage(): Language {
@@ -50,8 +56,10 @@ export const useStore = create<AppState>()(
       chartBase: 'eur',
       chartTarget: 'usd',
       timeframe: '1M',
+      customRange: null,
 
       language: detectLanguage(),
+      onboarded: false,
 
       setActive: (code) => set({ activeCode: code }),
       setAmount: (amount) => set({ amount }),
@@ -93,8 +101,10 @@ export const useStore = create<AppState>()(
       swapChartPair: () =>
         set((s) => ({ chartBase: s.chartTarget, chartTarget: s.chartBase })),
 
-      setTimeframe: (tf) => set({ timeframe: tf }),
+      setTimeframe: (tf) => set({ timeframe: tf, customRange: null }),
+      setCustomRange: (range) => set({ customRange: range }),
       setLanguage: (lang) => set({ language: lang }),
+      setOnboarded: (onboarded) => set({ onboarded }),
     }),
     {
       name: 'currency-exchange-v1',
@@ -105,7 +115,9 @@ export const useStore = create<AppState>()(
         chartBase: s.chartBase,
         chartTarget: s.chartTarget,
         timeframe: s.timeframe,
+        customRange: s.customRange,
         language: s.language,
+        onboarded: s.onboarded,
       }),
     },
   ),

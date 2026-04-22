@@ -1,0 +1,28 @@
+{
+  "name": "@currency-exchange/root",
+  "tasks": {
+    "start": "deno run --allow-net --allow-env --unstable-kv bot/src/main.ts"
+  },
+  "imports": {
+    "grammy": "https://deno.land/x/grammy@v1.30.0/mod.ts",
+    "grammy/types": "https://deno.land/x/grammy@v1.30.0/types.ts",
+    "std/": "https://deno.land/std@0.224.0/"
+  },
+  "compilerOptions": {
+    "lib": ["deno.window", "deno.unstable"],
+    "strict": true
+  },
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src",
+    "public",
+    "index.html",
+    "vite.config.ts",
+    "package.json",
+    "package-lock.json",
+    "tsconfig.json",
+    "tsconfig.app.json",
+    "tsconfig.node.json"
+  ]
+}
