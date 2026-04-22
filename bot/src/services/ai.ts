@@ -12,7 +12,10 @@ export type Intent =
   | { action: 'set_language'; lang: 'en' | 'ru' }
   | { action: 'reset' }
   | { action: 'help' }
+  | { action: 'compound'; summary: string; steps: Intent[] }
   | { action: 'chat'; reply: string };
+
+export type AtomicIntent = Exclude<Intent, { action: 'compound' }>;
 
 const POLLINATIONS_URL = 'https://text.pollinations.ai/';
 const REQUEST_TIMEOUT_MS = 15_000;
@@ -43,7 +46,11 @@ Reply with ONE JSON object — no markdown, no code fences, no commentary. Pick 
 9. {"action":"set_language","lang":"en"|"ru"} — user wants to switch bot language.
 10. {"action":"reset"} — user wants to wipe all their bot data and start over ("reset everything", "сбрось всё", "начать с нуля", "delete my account").
 11. {"action":"help"} — user asks what the bot can do, how to use it.
-12. {"action":"chat","reply":"<short message in ${
+12. {"action":"compound","summary":"<one-paragraph plain-language summary of the whole plan in the user's language>","steps":[<2 to 5 atomic intents>]} — the user asked for TWO OR MORE related actions in one message. Examples:
+    • "Нужна сводка в 17:00 по Берлину в паре EUR/HUF" when user's current tz is NOT Europe/Berlin → steps = [set_timezone(Europe/Berlin), daily_digest(pair, EUR, HUF, 17, 0)].
+    • "Switch to English and delete all my alerts" → steps = [set_language(en), delete_alert(all=true)].
+    NEVER nest compound inside steps. NEVER use compound for a single action. The summary must plainly list what will happen so the user can confirm.
+13. {"action":"chat","reply":"<short message in ${
     lang === 'ru' ? 'Russian' : 'English'
   }>"} — greetings, off-topic, clarifications, smalltalk.
 
@@ -94,7 +101,7 @@ function extractJson(raw: string): unknown {
   }
 }
 
-function validateIntent(obj: unknown): Intent | null {
+export function validateIntent(obj: unknown): Intent | null {
   if (!obj || typeof obj !== 'object') return null;
   const o = obj as Record<string, unknown>;
   switch (o.action) {
@@ -147,6 +154,18 @@ function validateIntent(obj: unknown): Intent | null {
     }
     case 'reset':
       return { action: 'reset' };
+    case 'compound': {
+      if (typeof o.summary !== 'string' || !o.summary.trim()) return null;
+      if (!Array.isArray(o.steps) || o.steps.length < 2 || o.steps.length > 6) return null;
+      const steps: AtomicIntent[] = [];
+      for (const raw of o.steps) {
+        const validated = validateIntent(raw);
+        if (!validated) return null;
+        if (validated.action === 'compound') return null;
+        steps.push(validated as AtomicIntent);
+      }
+      return { action: 'compound', summary: o.summary.slice(0, 600), steps };
+    }
     case 'set_timezone': {
       if (typeof o.tz !== 'string' || !o.tz.trim()) return null;
       return { action: 'set_timezone', tz: o.tz };

@@ -22,7 +22,8 @@ export type SessionData = {
     | { type: 'alerts:value'; base: string; target: string; condType: 'above' | 'below' | 'pct_up' | 'pct_down' }
     | { type: 'digest:pair' }
     | { type: 'digest:time'; scope: 'pair' | 'watchlist'; base: string; target: string }
-    | { type: 'settings:tz_custom' };
+    | { type: 'settings:tz_custom' }
+    | { type: 'pending_compound'; summary: string; steps: unknown[] };
 };
 
 export type BotCtx = Context & SessionFlavor<SessionData> & {

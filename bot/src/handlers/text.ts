@@ -1,11 +1,11 @@
-import type { Bot } from 'grammy';
+import { InlineKeyboard, type Bot } from 'grammy';
 import type { BotCtx } from '../bot.ts';
 import { handleConvertText } from './convert.ts';
 import { handleWatchAdd, handleWatchBase, handleSingleCurrencyAsBase } from './watch.ts';
 import { handleChartPair, sendChart } from './chart.ts';
 import { handleAlertsPair, handleAlertsValue, handleDigestPair, handleDigestTime } from './alerts.ts';
 import { handleTzCustom } from './settings.ts';
-import { resolveIntent, type Intent } from '../services/ai.ts';
+import { resolveIntent, validateIntent, type Intent } from '../services/ai.ts';
 import { refreshUser } from '../bot.ts';
 import {
   appendContext,
@@ -147,6 +147,24 @@ async function runIntent(ctx: BotCtx, intent: Intent): Promise<string | null> {
       await askReset(ctx);
       return 'Asked for reset confirmation';
     }
+    case 'compound': {
+      ctx.session.mode = {
+        type: 'pending_compound',
+        summary: intent.summary,
+        steps: intent.steps as unknown[],
+      };
+      const header = ctx.lang === 'ru'
+        ? '📋 <b>Собираюсь сделать:</b>'
+        : '📋 <b>Planned steps:</b>';
+      const kb = new InlineKeyboard()
+        .text(ctx.lang === 'ru' ? '✅ Подтвердить' : '✅ Confirm', 'compound:confirm')
+        .text(ctx.lang === 'ru' ? '❌ Отмена' : '❌ Cancel', 'compound:cancel');
+      await ctx.reply(`${header}\n\n${intent.summary}`, {
+        parse_mode: 'HTML',
+        reply_markup: kb,
+      });
+      return `Proposed: ${intent.summary}`;
+    }
     case 'chat': {
       await ctx.reply(intent.reply, { parse_mode: 'HTML' }).catch(() =>
         ctx.reply(intent.reply)
@@ -230,5 +248,38 @@ export function registerText(bot: Bot<BotCtx>): void {
     if (await handleSingleCurrencyAsBase(ctx, text)) return;
 
     await handleAiFallback(ctx, text);
+  });
+
+  bot.callbackQuery('compound:confirm', async (ctx) => {
+    await ctx.answerCallbackQuery();
+    const mode = ctx.session.mode;
+    if (mode?.type !== 'pending_compound') {
+      const stale = ctx.lang === 'ru'
+        ? 'План уже не активен — напиши запрос ещё раз.'
+        : 'That plan is no longer pending — send the request again.';
+      await ctx.reply(stale);
+      return;
+    }
+    const rawSteps = mode.steps;
+    ctx.session.mode = undefined;
+    const running = ctx.lang === 'ru' ? '✅ Выполняю…' : '✅ Running…';
+    await ctx.editMessageText(running, { parse_mode: 'HTML' }).catch(() => {});
+
+    for (const raw of rawSteps) {
+      const step = validateIntent(raw);
+      if (!step || step.action === 'compound') continue;
+      try {
+        await runIntent(ctx, step);
+      } catch (e) {
+        console.error('compound step failed', step.action, e instanceof Error ? e.message : e);
+      }
+    }
+  });
+
+  bot.callbackQuery('compound:cancel', async (ctx) => {
+    await ctx.answerCallbackQuery();
+    ctx.session.mode = undefined;
+    const msg = ctx.lang === 'ru' ? '❌ Отменено.' : '❌ Cancelled.';
+    await ctx.editMessageText(msg).catch(() => ctx.reply(msg));
   });
 }
