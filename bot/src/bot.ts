@@ -131,6 +131,23 @@ export function createBot(token: string): Bot<BotCtx> {
     });
   });
 
+  // Universal escape hatch: /cancel and the inline "Cancel" button
+  // clear whatever multi-step mode the user is stuck in. Without this,
+  // a user who typed /chart and then messaged anything else was trapped
+  // in chart:pair mode until they figured out that slash commands
+  // break out of it.
+  bot.command('cancel', async (ctx) => {
+    ctx.session.mode = undefined;
+    await ctx.reply(t(ctx.lang).reset.cancelled);
+  });
+
+  bot.callbackQuery('mode:cancel', async (ctx) => {
+    ctx.session.mode = undefined;
+    await ctx.answerCallbackQuery();
+    const msg = t(ctx.lang).reset.cancelled;
+    await ctx.editMessageText(msg).catch(() => ctx.reply(msg));
+  });
+
   return bot;
 }
 
@@ -143,6 +160,7 @@ export async function setBotCommands(bot: Bot<BotCtx>): Promise<void> {
     { command: 'alerts', description: 'Manage alerts' },
     { command: 'settings', description: 'Language & preferences' },
     { command: 'help', description: 'How to use' },
+    { command: 'cancel', description: 'Cancel the current action' },
     { command: 'reset', description: 'Wipe all data and start over' },
   ], { language_code: 'en' });
 
@@ -154,6 +172,7 @@ export async function setBotCommands(bot: Bot<BotCtx>): Promise<void> {
     { command: 'alerts', description: 'Алерты' },
     { command: 'settings', description: 'Язык и настройки' },
     { command: 'help', description: 'Как пользоваться' },
+    { command: 'cancel', description: 'Отменить текущее действие' },
     { command: 'reset', description: 'Сбросить все данные' },
   ], { language_code: 'ru' });
 }

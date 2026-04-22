@@ -3,7 +3,7 @@ import type { BotCtx } from '../bot.ts';
 import { refreshUser } from '../bot.ts';
 import { isSupportedLang, SUPPORTED_LANGS, t } from '../i18n/index.ts';
 import { LANGUAGES } from '../i18n/languages.ts';
-import { timezoneMenu } from '../keyboards.ts';
+import { cancelKb, timezoneMenu } from '../keyboards.ts';
 import { TIMEZONES, tzLabel } from '../services/timezones.ts';
 import { resolveIntent } from '../services/ai.ts';
 import { replyError, withTyping } from './_error.ts';
@@ -79,6 +79,7 @@ export function registerSettings(bot: Bot<BotCtx>): void {
     ctx.session.mode = { type: 'settings:tz_custom' };
     await ctx.editMessageText(t(ctx.lang).settings.tz_custom_prompt, {
       parse_mode: 'HTML',
+      reply_markup: cancelKb(ctx.lang),
     });
   });
 }
@@ -115,7 +116,7 @@ export async function handleTzCustom(ctx: BotCtx, text: string): Promise<boolean
     const msg = ctx.lang === 'ru'
       ? `Не получилось найти пояс для «${text}». Попробуй другое написание или выбери из списка — /settings.`
       : `Couldn't resolve "${text}" to a time zone. Try a different spelling or pick from the list — /settings.`;
-    await ctx.reply(msg);
+    await ctx.reply(msg, { reply_markup: cancelKb(ctx.lang) });
     return true;
   } catch (e) {
     ctx.session.mode = undefined;

@@ -6,7 +6,7 @@ import { findCurrency, CURRENCY_BY_CODE } from '../data/currencies.ts';
 import type { Timeframe } from '../services/dates.ts';
 import { formatPercent, formatRate } from '../services/format.ts';
 import { t, tpl } from '../i18n/index.ts';
-import { timeframeKeyboard } from '../keyboards.ts';
+import { cancelKb, timeframeKeyboard } from '../keyboards.ts';
 import { replyError, withTyping } from './_error.ts';
 
 export function registerChart(bot: Bot<BotCtx>): void {
@@ -15,7 +15,10 @@ export function registerChart(bot: Bot<BotCtx>): void {
     const parsed = parseChartCommand(args);
     if (!parsed) {
       ctx.session.mode = { type: 'chart:pair' };
-      await ctx.reply(t(ctx.lang).chart.pick_pair, { parse_mode: 'HTML' });
+      await ctx.reply(t(ctx.lang).chart.pick_pair, {
+        parse_mode: 'HTML',
+        reply_markup: cancelKb(ctx.lang),
+      });
       return;
     }
     await sendChart(ctx, parsed.base.code, parsed.target.code, parsed.tf as Timeframe);
@@ -26,7 +29,7 @@ export function registerChart(bot: Bot<BotCtx>): void {
     ctx.session.mode = { type: 'chart:pair' };
     await ctx.editMessageText(t(ctx.lang).chart.pick_pair, {
       parse_mode: 'HTML',
-      reply_markup: { inline_keyboard: [[{ text: t(ctx.lang).common.back, callback_data: 'menu:home' }]] },
+      reply_markup: cancelKb(ctx.lang),
     });
   });
 
@@ -52,13 +55,19 @@ export async function handleChartPair(ctx: BotCtx, text: string): Promise<boolea
   try {
     const parts = text.trim().toLowerCase().split(/\s+/);
     if (parts.length < 2) {
-      await ctx.reply(t(ctx.lang).chart.pick_pair, { parse_mode: 'HTML' });
+      await ctx.reply(t(ctx.lang).chart.pick_pair, {
+        parse_mode: 'HTML',
+        reply_markup: cancelKb(ctx.lang),
+      });
       return true;
     }
     const base = findCurrency(parts[0]);
     const target = findCurrency(parts[1]);
     if (!base || !target) {
-      await ctx.reply(tpl(t(ctx.lang).common.unknown_currency, { q: text }), { parse_mode: 'HTML' });
+      await ctx.reply(tpl(t(ctx.lang).common.unknown_currency, { q: text }), {
+        parse_mode: 'HTML',
+        reply_markup: cancelKb(ctx.lang),
+      });
       return true;
     }
     ctx.session.mode = undefined;

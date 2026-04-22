@@ -4,6 +4,10 @@ import type { Lang } from './services/storage.ts';
 import { TIMEFRAMES } from './services/dates.ts';
 import { TIMEZONES, tzLabel } from './services/timezones.ts';
 
+export function cancelKb(lang: Lang): InlineKeyboard {
+  return new InlineKeyboard().text(t(lang).common.cancel, 'mode:cancel');
+}
+
 export function mainMenu(lang: Lang): InlineKeyboard {
   const T = t(lang).start;
   return new InlineKeyboard()

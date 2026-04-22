@@ -53,18 +53,27 @@ function detectLanguageSwitch(text: string): SupportedLang | null {
   return null;
 }
 
+/** Runs at the top of the text pipeline, BEFORE any multi-step mode
+ * handlers. A user stuck in e.g. chart:pair mode typing "Русский"
+ * should be rescued immediately — without this early check, the text
+ * would be swallowed by handleChartPair and re-prompt the user
+ * indefinitely. Clears the mode if it was set. */
+async function tryLanguageFastPath(ctx: BotCtx, text: string): Promise<boolean> {
+  const userId = ctx.from?.id;
+  if (!userId) return false;
+  const fastLang = detectLanguageSwitch(text);
+  if (!fastLang) return false;
+  ctx.session.mode = undefined;
+  await refreshUser(ctx, { lang: fastLang });
+  await ctx.reply(t(ctx.lang).settings.lang_changed);
+  await appendContext(userId, text, `Language set to ${fastLang}`).catch(() => {});
+  return true;
+}
+
 async function handleAiFallback(ctx: BotCtx, text: string): Promise<boolean> {
   const userId = ctx.from?.id;
   if (!userId) return false;
   if (ctx.session.mode) return false;
-
-  const fastLang = detectLanguageSwitch(text);
-  if (fastLang) {
-    await refreshUser(ctx, { lang: fastLang });
-    await ctx.reply(t(ctx.lang).settings.lang_changed);
-    await appendContext(userId, text, `Language set to ${fastLang}`).catch(() => {});
-    return true;
-  }
 
   ctx.replyWithChatAction('typing').catch(() => {});
   const history = await getContext(userId).catch(() => []);
@@ -277,6 +286,8 @@ export function registerText(bot: Bot<BotCtx>): void {
   bot.on('message:text', async (ctx) => {
     const text = ctx.message.text;
     if (text.startsWith('/')) return;
+
+    if (await tryLanguageFastPath(ctx, text)) return;
 
     if (await handleWatchAdd(ctx, text)) return;
     if (await handleWatchBase(ctx, text)) return;

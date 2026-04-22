@@ -12,7 +12,7 @@ import {
 import { CURRENCY_BY_CODE, findCurrency } from '../data/currencies.ts';
 import { convert } from '../services/rates.ts';
 import { t, tpl } from '../i18n/index.ts';
-import { alertsMenu, alertTypeMenu, digestScopeMenu, digestTimeMenu } from '../keyboards.ts';
+import { alertsMenu, alertTypeMenu, cancelKb, digestScopeMenu, digestTimeMenu } from '../keyboards.ts';
 import { tzLabel } from '../services/timezones.ts';
 import { formatRate } from '../services/format.ts';
 import { replyError, withTyping } from './_error.ts';
@@ -77,7 +77,10 @@ export function registerAlerts(bot: Bot<BotCtx>): void {
 
   bot.command('alert', async (ctx) => {
     ctx.session.mode = { type: 'alerts:pair' };
-    await ctx.reply(t(ctx.lang).alerts.pick_pair, { parse_mode: 'HTML' });
+    await ctx.reply(t(ctx.lang).alerts.pick_pair, {
+      parse_mode: 'HTML',
+      reply_markup: cancelKb(ctx.lang),
+    });
   });
 
   bot.callbackQuery('menu:alerts', async (ctx) => {
@@ -94,7 +97,10 @@ export function registerAlerts(bot: Bot<BotCtx>): void {
       return;
     }
     ctx.session.mode = { type: 'alerts:pair' };
-    await ctx.reply(t(ctx.lang).alerts.pick_pair, { parse_mode: 'HTML' });
+    await ctx.reply(t(ctx.lang).alerts.pick_pair, {
+      parse_mode: 'HTML',
+      reply_markup: cancelKb(ctx.lang),
+    });
   });
 
   bot.callbackQuery(/^alerts:type:(above|below|pct_up|pct_down):([^:]+):([^:]+)$/, async (ctx) => {
@@ -113,7 +119,10 @@ export function registerAlerts(bot: Bot<BotCtx>): void {
       pair: `${base.toUpperCase()}/${target.toUpperCase()}`,
       type: typeLabel,
       hint,
-    }), { parse_mode: 'HTML' });
+    }), {
+      parse_mode: 'HTML',
+      reply_markup: cancelKb(ctx.lang),
+    });
   });
 
   bot.callbackQuery(/^alerts:del:(.+)$/, async (ctx) => {
@@ -145,7 +154,10 @@ export function registerAlerts(bot: Bot<BotCtx>): void {
     const D = t(ctx.lang).digest;
     if (scope === 'pair') {
       ctx.session.mode = { type: 'digest:pair' };
-      await ctx.editMessageText(D.pick_pair, { parse_mode: 'HTML' });
+      await ctx.editMessageText(D.pick_pair, {
+        parse_mode: 'HTML',
+        reply_markup: cancelKb(ctx.lang),
+      });
       return;
     }
     ctx.session.mode = { type: 'digest:time', scope: 'watchlist', base: 'all', target: 'all' };
@@ -207,13 +219,19 @@ export async function handleDigestPair(ctx: BotCtx, text: string): Promise<boole
   try {
     const parts = text.trim().toLowerCase().split(/\s+/);
     if (parts.length < 2) {
-      await ctx.reply(t(ctx.lang).digest.pick_pair, { parse_mode: 'HTML' });
+      await ctx.reply(t(ctx.lang).digest.pick_pair, {
+        parse_mode: 'HTML',
+        reply_markup: cancelKb(ctx.lang),
+      });
       return true;
     }
     const base = findCurrency(parts[0]);
     const target = findCurrency(parts[1]);
     if (!base || !target) {
-      await ctx.reply(tpl(t(ctx.lang).common.unknown_currency, { q: text }), { parse_mode: 'HTML' });
+      await ctx.reply(tpl(t(ctx.lang).common.unknown_currency, { q: text }), {
+        parse_mode: 'HTML',
+        reply_markup: cancelKb(ctx.lang),
+      });
       return true;
     }
     ctx.session.mode = {
@@ -246,7 +264,10 @@ export async function handleDigestTime(ctx: BotCtx, text: string): Promise<boole
   try {
     const m = text.trim().match(TIME_RE);
     if (!m) {
-      await ctx.reply(t(ctx.lang).digest.time_invalid, { parse_mode: 'HTML' });
+      await ctx.reply(t(ctx.lang).digest.time_invalid, {
+        parse_mode: 'HTML',
+        reply_markup: cancelKb(ctx.lang),
+      });
       return true;
     }
     const hour = parseInt(m[1], 10);
@@ -265,13 +286,19 @@ export async function handleAlertsPair(ctx: BotCtx, text: string): Promise<boole
   try {
     const parts = text.trim().toLowerCase().split(/\s+/);
     if (parts.length < 2) {
-      await ctx.reply(t(ctx.lang).alerts.pick_pair, { parse_mode: 'HTML' });
+      await ctx.reply(t(ctx.lang).alerts.pick_pair, {
+        parse_mode: 'HTML',
+        reply_markup: cancelKb(ctx.lang),
+      });
       return true;
     }
     const base = findCurrency(parts[0]);
     const target = findCurrency(parts[1]);
     if (!base || !target) {
-      await ctx.reply(tpl(t(ctx.lang).common.unknown_currency, { q: text }), { parse_mode: 'HTML' });
+      await ctx.reply(tpl(t(ctx.lang).common.unknown_currency, { q: text }), {
+        parse_mode: 'HTML',
+        reply_markup: cancelKb(ctx.lang),
+      });
       return true;
     }
     ctx.session.mode = undefined;
@@ -296,7 +323,7 @@ export async function handleAlertsValue(ctx: BotCtx, text: string): Promise<bool
       const msg = ctx.lang === 'ru'
         ? `Не получилось прочитать число из «${text}». Пришли просто число, например 1.15 или 2.`
         : `I couldn't read a number from "${text}". Send a plain number like 1.15 or 2.`;
-      await ctx.reply(msg);
+      await ctx.reply(msg, { reply_markup: cancelKb(ctx.lang) });
       return true;
     }
     if (!ctx.from) return true;

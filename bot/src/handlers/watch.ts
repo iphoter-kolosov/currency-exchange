@@ -5,7 +5,7 @@ import { CURRENCY_BY_CODE, findCurrency } from '../data/currencies.ts';
 import { formatMoney } from '../services/format.ts';
 import { t, tpl } from '../i18n/index.ts';
 import { refreshUser } from '../bot.ts';
-import { watchMenu, watchRemoveList } from '../keyboards.ts';
+import { cancelKb, watchMenu, watchRemoveList } from '../keyboards.ts';
 import { replyError, withTyping } from './_error.ts';
 
 async function buildWatchText(ctx: BotCtx): Promise<string> {
@@ -72,13 +72,19 @@ export function registerWatch(bot: Bot<BotCtx>): void {
   bot.callbackQuery('watch:add', async (ctx) => {
     await ctx.answerCallbackQuery();
     ctx.session.mode = { type: 'watch:add' };
-    await ctx.reply(t(ctx.lang).watchlist.add_prompt, { parse_mode: 'HTML' });
+    await ctx.reply(t(ctx.lang).watchlist.add_prompt, {
+      parse_mode: 'HTML',
+      reply_markup: cancelKb(ctx.lang),
+    });
   });
 
   bot.callbackQuery('watch:base', async (ctx) => {
     await ctx.answerCallbackQuery();
     ctx.session.mode = { type: 'watch:base' };
-    await ctx.reply(t(ctx.lang).watchlist.base_prompt, { parse_mode: 'HTML' });
+    await ctx.reply(t(ctx.lang).watchlist.base_prompt, {
+      parse_mode: 'HTML',
+      reply_markup: cancelKb(ctx.lang),
+    });
   });
 
   bot.callbackQuery('watch:remove', async (ctx) => {
@@ -105,7 +111,10 @@ export async function handleWatchAdd(ctx: BotCtx, text: string): Promise<boolean
   try {
     const cur = findCurrency(text);
     if (!cur) {
-      await ctx.reply(tpl(t(ctx.lang).common.unknown_currency, { q: text }), { parse_mode: 'HTML' });
+      await ctx.reply(tpl(t(ctx.lang).common.unknown_currency, { q: text }), {
+        parse_mode: 'HTML',
+        reply_markup: cancelKb(ctx.lang),
+      });
       return true;
     }
     const list = ctx.user.watchlist.includes(cur.code)
@@ -128,7 +137,10 @@ export async function handleWatchBase(ctx: BotCtx, text: string): Promise<boolea
   try {
     const cur = findCurrency(text);
     if (!cur) {
-      await ctx.reply(tpl(t(ctx.lang).common.unknown_currency, { q: text }), { parse_mode: 'HTML' });
+      await ctx.reply(tpl(t(ctx.lang).common.unknown_currency, { q: text }), {
+        parse_mode: 'HTML',
+        reply_markup: cancelKb(ctx.lang),
+      });
       return true;
     }
     const list = ctx.user.watchlist.includes(cur.code)
