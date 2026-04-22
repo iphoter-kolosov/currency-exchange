@@ -6,6 +6,7 @@ import { formatMoney } from '../services/format.ts';
 import { t } from '../i18n/index.ts';
 import { refreshUser } from '../bot.ts';
 import { watchMenu, watchRemoveList } from '../keyboards.ts';
+import { replyError, withTyping } from './_error.ts';
 
 async function buildWatchText(ctx: BotCtx): Promise<string> {
   const W = t(ctx.lang).watchlist;
@@ -101,36 +102,48 @@ export function registerWatch(bot: Bot<BotCtx>): void {
 
 export async function handleWatchAdd(ctx: BotCtx, text: string): Promise<boolean> {
   if (ctx.session.mode?.type !== 'watch:add') return false;
-  const cur = findCurrency(text);
-  if (!cur) {
-    await ctx.reply(t(ctx.lang).common.unknown_currency(text), { parse_mode: 'HTML' });
+  try {
+    const cur = findCurrency(text);
+    if (!cur) {
+      await ctx.reply(t(ctx.lang).common.unknown_currency(text), { parse_mode: 'HTML' });
+      return true;
+    }
+    const list = ctx.user.watchlist.includes(cur.code)
+      ? ctx.user.watchlist
+      : [...ctx.user.watchlist, cur.code];
+    await refreshUser(ctx, { watchlist: list });
+    ctx.session.mode = undefined;
+    const str = await withTyping(ctx, () => buildWatchText(ctx));
+    await ctx.reply(str, { parse_mode: 'HTML', reply_markup: watchMenu(ctx.lang) });
+    return true;
+  } catch (e) {
+    ctx.session.mode = undefined;
+    await replyError(ctx, e, `adding currency "${text}" to watchlist`);
     return true;
   }
-  const list = ctx.user.watchlist.includes(cur.code)
-    ? ctx.user.watchlist
-    : [...ctx.user.watchlist, cur.code];
-  await refreshUser(ctx, { watchlist: list });
-  ctx.session.mode = undefined;
-  const str = await buildWatchText(ctx);
-  await ctx.reply(str, { parse_mode: 'HTML', reply_markup: watchMenu(ctx.lang) });
-  return true;
 }
 
 export async function handleWatchBase(ctx: BotCtx, text: string): Promise<boolean> {
   if (ctx.session.mode?.type !== 'watch:base') return false;
-  const cur = findCurrency(text);
-  if (!cur) {
-    await ctx.reply(t(ctx.lang).common.unknown_currency(text), { parse_mode: 'HTML' });
+  try {
+    const cur = findCurrency(text);
+    if (!cur) {
+      await ctx.reply(t(ctx.lang).common.unknown_currency(text), { parse_mode: 'HTML' });
+      return true;
+    }
+    const list = ctx.user.watchlist.includes(cur.code)
+      ? ctx.user.watchlist
+      : [cur.code, ...ctx.user.watchlist];
+    await refreshUser(ctx, { defaultBase: cur.code, watchlist: list });
+    ctx.session.mode = undefined;
+    const str = await withTyping(ctx, () => buildWatchText(ctx));
+    await ctx.reply(str, { parse_mode: 'HTML', reply_markup: watchMenu(ctx.lang) });
+    return true;
+  } catch (e) {
+    ctx.session.mode = undefined;
+    await replyError(ctx, e, `changing base currency to "${text}"`);
     return true;
   }
-  const list = ctx.user.watchlist.includes(cur.code)
-    ? ctx.user.watchlist
-    : [cur.code, ...ctx.user.watchlist];
-  await refreshUser(ctx, { defaultBase: cur.code, watchlist: list });
-  ctx.session.mode = undefined;
-  const str = await buildWatchText(ctx);
-  await ctx.reply(str, { parse_mode: 'HTML', reply_markup: watchMenu(ctx.lang) });
-  return true;
 }
 
 export async function handleSingleCurrencyAsBase(ctx: BotCtx, text: string): Promise<boolean> {
@@ -140,11 +153,16 @@ export async function handleSingleCurrencyAsBase(ctx: BotCtx, text: string): Pro
   const cur = findCurrency(trimmed);
   if (!cur) return false;
 
-  const list = ctx.user.watchlist.includes(cur.code)
-    ? ctx.user.watchlist
-    : [cur.code, ...ctx.user.watchlist];
-  await refreshUser(ctx, { defaultBase: cur.code, watchlist: list });
-  const str = await buildWatchText(ctx);
-  await ctx.reply(str, { parse_mode: 'HTML', reply_markup: watchMenu(ctx.lang) });
-  return true;
+  try {
+    const list = ctx.user.watchlist.includes(cur.code)
+      ? ctx.user.watchlist
+      : [cur.code, ...ctx.user.watchlist];
+    await refreshUser(ctx, { defaultBase: cur.code, watchlist: list });
+    const str = await withTyping(ctx, () => buildWatchText(ctx));
+    await ctx.reply(str, { parse_mode: 'HTML', reply_markup: watchMenu(ctx.lang) });
+    return true;
+  } catch (e) {
+    await replyError(ctx, e, `showing watchlist with base ${cur.iso}`);
+    return true;
+  }
 }

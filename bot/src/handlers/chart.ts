@@ -7,6 +7,7 @@ import type { Timeframe } from '../services/dates.ts';
 import { formatPercent, formatRate } from '../services/format.ts';
 import { t } from '../i18n/index.ts';
 import { timeframeKeyboard } from '../keyboards.ts';
+import { replyError, withTyping } from './_error.ts';
 
 export function registerChart(bot: Bot<BotCtx>): void {
   bot.command('chart', async (ctx) => {
@@ -48,20 +49,26 @@ export function registerChart(bot: Bot<BotCtx>): void {
 
 export async function handleChartPair(ctx: BotCtx, text: string): Promise<boolean> {
   if (ctx.session.mode?.type !== 'chart:pair') return false;
-  const parts = text.trim().toLowerCase().split(/\s+/);
-  if (parts.length < 2) {
-    await ctx.reply(t(ctx.lang).chart.pick_pair, { parse_mode: 'HTML' });
+  try {
+    const parts = text.trim().toLowerCase().split(/\s+/);
+    if (parts.length < 2) {
+      await ctx.reply(t(ctx.lang).chart.pick_pair, { parse_mode: 'HTML' });
+      return true;
+    }
+    const base = findCurrency(parts[0]);
+    const target = findCurrency(parts[1]);
+    if (!base || !target) {
+      await ctx.reply(t(ctx.lang).common.unknown_currency(text), { parse_mode: 'HTML' });
+      return true;
+    }
+    ctx.session.mode = undefined;
+    await sendChart(ctx, base.code, target.code, '1M');
+    return true;
+  } catch (e) {
+    ctx.session.mode = undefined;
+    await replyError(ctx, e, `rendering chart for "${text}"`);
     return true;
   }
-  const base = findCurrency(parts[0]);
-  const target = findCurrency(parts[1]);
-  if (!base || !target) {
-    await ctx.reply(t(ctx.lang).common.unknown_currency(text), { parse_mode: 'HTML' });
-    return true;
-  }
-  ctx.session.mode = undefined;
-  await sendChart(ctx, base.code, target.code, '1M');
-  return true;
 }
 
 export async function sendChart(
@@ -77,6 +84,7 @@ export async function sendChart(
     return;
   }
   try {
+    ctx.replyWithChatAction('upload_photo').catch(() => {});
     const series = await fetchSeries(base, target, tf);
     if (series.length < 2) {
       await ctx.reply(t(ctx.lang).chart.no_data);
@@ -101,7 +109,6 @@ export async function sendChart(
       reply_markup: timeframeKeyboard(base, target, tf),
     });
   } catch (e) {
-    console.error('chart failed', e);
-    await ctx.reply(t(ctx.lang).common.error);
+    await replyError(ctx, e, `loading ${baseCur.iso}/${targetCur.iso} chart for ${tf}`);
   }
 }

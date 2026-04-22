@@ -150,3 +150,50 @@ export async function resolveIntent(
     clearTimeout(timer);
   }
 }
+
+const ERROR_PROMPT = (lang: Lang) =>
+  `You are a warm, helpful assistant inside a Telegram currency bot. Something went wrong for a user.
+Reply in ${lang === 'ru' ? 'Russian' : 'English'}, plain text, no markdown, 1-2 sentences max (under 300 chars):
+1. Briefly acknowledge what didn't work in everyday language (no stack traces, no code words, no error IDs).
+2. Suggest one concrete next step (retry, different format, contact, or alternative).
+Tone: friendly, not robotic. Never reveal internal details or file paths.`;
+
+export async function explainError(
+  error: unknown,
+  userContext: string,
+  lang: Lang,
+  userId: number,
+): Promise<string | null> {
+  if (!checkRateLimit(userId)) return null;
+  const errMsg = error instanceof Error ? error.message : String(error);
+
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
+
+  try {
+    const res = await fetch(POLLINATIONS_URL, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        messages: [
+          { role: 'system', content: ERROR_PROMPT(lang) },
+          {
+            role: 'user',
+            content:
+              `User was trying to: ${userContext}\nTechnical error (internal, do not quote): ${errMsg.slice(0, 300)}\nWrite the friendly explanation now.`,
+          },
+        ],
+        model: 'openai',
+      }),
+      signal: ctrl.signal,
+    });
+    if (!res.ok) return null;
+    const body = (await res.text()).trim();
+    if (!body) return null;
+    return body.slice(0, 400);
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}

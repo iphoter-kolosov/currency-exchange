@@ -1,6 +1,7 @@
 import { Bot, Context, GrammyError, HttpError, session, type SessionFlavor } from 'grammy';
 import { getUser, updateUser, type Lang, type UserPrefs } from './services/storage.ts';
 import { detectLang, t } from './i18n/index.ts';
+import { explainError } from './services/ai.ts';
 import { mainMenu } from './keyboards.ts';
 import { registerStart } from './handlers/start.ts';
 import { registerConvert } from './handlers/convert.ts';
@@ -45,7 +46,7 @@ export function createBot(token: string): Bot<BotCtx> {
     await next();
   });
 
-  bot.catch((err) => {
+  bot.catch(async (err) => {
     const c = err.ctx;
     console.error(`Error while handling update ${c.update.update_id}:`);
     const e = err.error;
@@ -55,6 +56,17 @@ export function createBot(token: string): Bot<BotCtx> {
       console.error('HTTP error:', e);
     } else {
       console.error('Unknown error:', e);
+    }
+    try {
+      const lang: Lang = c.lang ?? detectLang(c.from?.language_code);
+      const userId = c.from?.id ?? 0;
+      const explanation = userId
+        ? await explainError(e, 'handling your message', lang, userId)
+        : null;
+      const fallback = t(lang).common.error;
+      await c.reply(explanation ?? fallback).catch(() => {});
+    } catch (replyErr) {
+      console.warn('bot.catch reply failed', replyErr);
     }
   });
 

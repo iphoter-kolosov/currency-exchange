@@ -4,6 +4,7 @@ import { parseInput } from '../services/parser.ts';
 import { convert } from '../services/rates.ts';
 import { formatAmount, formatRate } from '../services/format.ts';
 import { t } from '../i18n/index.ts';
+import { replyError, withTyping } from './_error.ts';
 
 export function registerConvert(bot: Bot<BotCtx>): void {
   bot.command('convert', async (ctx) => {
@@ -32,7 +33,7 @@ export async function handleConvertText(ctx: BotCtx, raw: string): Promise<boole
   const C = t(ctx.lang).convert;
   const amount = parsed.kind === 'convert' ? parsed.amount : 1;
   try {
-    const result = await convert(amount, parsed.from.code, parsed.to.code);
+    const result = await withTyping(ctx, () => convert(amount, parsed.from.code, parsed.to.code));
     const msg = C.result(
       formatAmount(amount, parsed.from, ctx.lang),
       parsed.from.iso,
@@ -44,8 +45,7 @@ export async function handleConvertText(ctx: BotCtx, raw: string): Promise<boole
     await ctx.reply(msg, { parse_mode: 'HTML' });
     return true;
   } catch (e) {
-    console.error('convert failed', e);
-    await ctx.reply(t(ctx.lang).common.error);
+    await replyError(ctx, e, `converting ${amount} ${parsed.from.iso} to ${parsed.to.iso}`);
     return true;
   }
 }

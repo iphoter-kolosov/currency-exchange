@@ -14,6 +14,7 @@ import { convert } from '../services/rates.ts';
 import { t } from '../i18n/index.ts';
 import { alertsMenu, alertTypeMenu } from '../keyboards.ts';
 import { formatRate } from '../services/format.ts';
+import { replyError, withTyping } from './_error.ts';
 
 export const FREE_ALERT_LIMIT = 5;
 
@@ -111,76 +112,90 @@ export function registerAlerts(bot: Bot<BotCtx>): void {
 
 export async function handleAlertsPair(ctx: BotCtx, text: string): Promise<boolean> {
   if (ctx.session.mode?.type !== 'alerts:pair') return false;
-  const parts = text.trim().toLowerCase().split(/\s+/);
-  if (parts.length < 2) {
-    await ctx.reply(t(ctx.lang).alerts.pick_pair, { parse_mode: 'HTML' });
+  try {
+    const parts = text.trim().toLowerCase().split(/\s+/);
+    if (parts.length < 2) {
+      await ctx.reply(t(ctx.lang).alerts.pick_pair, { parse_mode: 'HTML' });
+      return true;
+    }
+    const base = findCurrency(parts[0]);
+    const target = findCurrency(parts[1]);
+    if (!base || !target) {
+      await ctx.reply(t(ctx.lang).common.unknown_currency(text), { parse_mode: 'HTML' });
+      return true;
+    }
+    ctx.session.mode = undefined;
+    const T = t(ctx.lang).alerts;
+    await ctx.reply(T.pick_type, {
+      reply_markup: alertTypeMenu(ctx.lang, base.code, target.code),
+    });
+    return true;
+  } catch (e) {
+    await replyError(ctx, e, 'creating alert: picking pair');
     return true;
   }
-  const base = findCurrency(parts[0]);
-  const target = findCurrency(parts[1]);
-  if (!base || !target) {
-    await ctx.reply(t(ctx.lang).common.unknown_currency(text), { parse_mode: 'HTML' });
-    return true;
-  }
-  ctx.session.mode = undefined;
-  const T = t(ctx.lang).alerts;
-  await ctx.reply(T.pick_type, {
-    reply_markup: alertTypeMenu(ctx.lang, base.code, target.code),
-  });
-  return true;
 }
 
 export async function handleAlertsValue(ctx: BotCtx, text: string): Promise<boolean> {
   if (ctx.session.mode?.type !== 'alerts:value') return false;
   const mode = ctx.session.mode;
-  const raw = text.trim().replace(',', '.').replace('%', '');
-  const val = Number(raw);
-  if (!isFinite(val) || val <= 0) {
-    await ctx.reply(t(ctx.lang).alerts.pick_type);
-    return true;
-  }
-  if (!ctx.from) return true;
-
-  let baseline: number | undefined;
-  if (mode.condType === 'pct_up' || mode.condType === 'pct_down') {
-    try {
-      const res = await convert(1, mode.base, mode.target);
-      baseline = res.rate;
-    } catch {
-      baseline = undefined;
+  try {
+    const raw = text.trim().replace(',', '.').replace('%', '');
+    const val = Number(raw);
+    if (!isFinite(val) || val <= 0) {
+      const msg = ctx.lang === 'ru'
+        ? `Не получилось прочитать число из «${text}». Пришли просто число, например 1.15 или 2.`
+        : `I couldn't read a number from "${text}". Send a plain number like 1.15 or 2.`;
+      await ctx.reply(msg);
+      return true;
     }
-  }
+    if (!ctx.from) return true;
 
-  let condition: AlertCondition;
-  if (mode.condType === 'above') condition = { type: 'above', value: val };
-  else if (mode.condType === 'below') condition = { type: 'below', value: val };
-  else if (mode.condType === 'pct_up') condition = { type: 'pct_up', value: val, windowHours: 24 };
-  else condition = { type: 'pct_down', value: val, windowHours: 24 };
+    let baseline: number | undefined;
+    if (mode.condType === 'pct_up' || mode.condType === 'pct_down') {
+      try {
+        const res = await withTyping(ctx, () => convert(1, mode.base, mode.target));
+        baseline = res.rate;
+      } catch {
+        baseline = undefined;
+      }
+    }
 
-  const alert: Alert = {
-    id: newId(),
-    userId: ctx.from.id,
-    base: mode.base,
-    target: mode.target,
-    condition,
-    createdAt: Date.now(),
-    active: true,
-    baseline,
-  };
-  await createAlert(alert);
-  ctx.session.mode = undefined;
+    let condition: AlertCondition;
+    if (mode.condType === 'above') condition = { type: 'above', value: val };
+    else if (mode.condType === 'below') condition = { type: 'below', value: val };
+    else if (mode.condType === 'pct_up') condition = { type: 'pct_up', value: val, windowHours: 24 };
+    else condition = { type: 'pct_down', value: val, windowHours: 24 };
 
-  const baseCur = CURRENCY_BY_CODE[mode.base];
-  const targetCur = CURRENCY_BY_CODE[mode.target];
-  if (!baseCur || !targetCur) {
-    await ctx.reply(t(ctx.lang).common.error);
+    const alert: Alert = {
+      id: newId(),
+      userId: ctx.from.id,
+      base: mode.base,
+      target: mode.target,
+      condition,
+      createdAt: Date.now(),
+      active: true,
+      baseline,
+    };
+    await createAlert(alert);
+    ctx.session.mode = undefined;
+
+    const baseCur = CURRENCY_BY_CODE[mode.base];
+    const targetCur = CURRENCY_BY_CODE[mode.target];
+    if (!baseCur || !targetCur) {
+      await ctx.reply(t(ctx.lang).common.error);
+      return true;
+    }
+    const summary = summaryLine(alert, ctx.lang);
+    const nowLine = baseline
+      ? `\n<i>${ctx.lang === 'ru' ? 'Сейчас' : 'Now'}: ${formatRate(baseline, ctx.lang)}</i>`
+      : '';
+    await ctx.reply(`${t(ctx.lang).alerts.created(summary)}${nowLine}`, { parse_mode: 'HTML' });
+    await showAlertList(ctx);
+    return true;
+  } catch (e) {
+    ctx.session.mode = undefined;
+    await replyError(ctx, e, `creating alert ${mode.base}/${mode.target} ${mode.condType}`);
     return true;
   }
-  const summary = summaryLine(alert, ctx.lang);
-  const now = baseline
-    ? `\n<i>Сейчас: ${formatRate(baseline, ctx.lang)}</i>`
-    : '';
-  await ctx.reply(`${t(ctx.lang).alerts.created(summary)}${now}`, { parse_mode: 'HTML' });
-  await showAlertList(ctx);
-  return true;
 }
