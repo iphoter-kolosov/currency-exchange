@@ -4,7 +4,7 @@ import { handleConvertText } from './convert.ts';
 import { handleWatchAdd, handleWatchBase, handleSingleCurrencyAsBase } from './watch.ts';
 import { handleChartPair, sendChart } from './chart.ts';
 import { handleAlertsPair, handleAlertsValue, handleDigestPair, handleDigestTime } from './alerts.ts';
-import { handleTzCustom } from './settings.ts';
+import { handleLangCustom, handleTzCustom } from './settings.ts';
 import { resolveIntent, validateIntent, type Intent } from '../services/ai.ts';
 import { refreshUser } from '../bot.ts';
 import {
@@ -137,8 +137,23 @@ async function runIntent(ctx: BotCtx, intent: Intent): Promise<string | null> {
       return `Set timezone to ${intent.tz}`;
     }
     case 'set_language': {
+      const prefix = intent.lang.toLowerCase().slice(0, 2);
       await refreshUser(ctx, { lang: intent.lang });
-      await ctx.reply(t(ctx.lang).settings.lang_changed);
+      if (prefix === 'en' || prefix === 'ru') {
+        await ctx.reply(t(ctx.lang).settings.lang_changed);
+      } else {
+        // No menu translation for this language — tell the user via the LLM
+        // itself so the confirmation lands in their language.
+        const userId = ctx.from?.id ?? 0;
+        const note = await resolveIntent(
+          `Acknowledge that the bot language is now set to ${intent.lang}. Mention in ONE short sentence that menu buttons stay in English but you will always reply in their language. Use action="chat".`,
+          intent.lang,
+          userId,
+        );
+        const fallback = `Language set to ${intent.lang}. Menus remain in English; chat replies will be in your language.`;
+        const text = note?.action === 'chat' ? note.reply : fallback;
+        await ctx.reply(text);
+      }
       return `Language set to ${intent.lang}`;
     }
     case 'help': {
@@ -249,6 +264,7 @@ export function registerText(bot: Bot<BotCtx>): void {
     if (await handleDigestPair(ctx, text)) return;
     if (await handleDigestTime(ctx, text)) return;
     if (await handleTzCustom(ctx, text)) return;
+    if (await handleLangCustom(ctx, text)) return;
 
     if (await handleConvertText(ctx, text)) return;
     if (await handleSingleCurrencyAsBase(ctx, text)) return;

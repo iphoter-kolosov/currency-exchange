@@ -9,12 +9,18 @@ import { replyError, withTyping } from './_error.ts';
 
 async function showSettings(ctx: BotCtx, edit: boolean): Promise<void> {
   const T = t(ctx.lang).settings;
-  const langLabel = ctx.lang === 'ru' ? T.language_ru : T.language_en;
+  const prefix = ctx.lang.toLowerCase().slice(0, 2);
+  const langLabel = prefix === 'ru'
+    ? T.language_ru
+    : prefix === 'en'
+      ? T.language_en
+      : ctx.lang;
   const tzLabelStr = tzLabel(ctx.user.tz, ctx.lang);
   const text = `${T.title}\n\n${T.language}: ${langLabel}\n${T.timezone}: ${tzLabelStr}`;
   const kb = new InlineKeyboard()
-    .text((ctx.lang === 'ru' ? '✓ ' : '') + T.language_ru, 'settings:lang:ru')
-    .text((ctx.lang === 'en' ? '✓ ' : '') + T.language_en, 'settings:lang:en').row()
+    .text((prefix === 'ru' ? '✓ ' : '') + T.language_ru, 'settings:lang:ru')
+    .text((prefix === 'en' ? '✓ ' : '') + T.language_en, 'settings:lang:en').row()
+    .text(T.lang_custom, 'settings:lang_custom').row()
     .text(`⏰ ${T.timezone}`, 'settings:tz').row()
     .text(t(ctx.lang).common.back, 'menu:home');
   if (edit) {
@@ -68,6 +74,14 @@ export function registerSettings(bot: Bot<BotCtx>): void {
       parse_mode: 'HTML',
     });
   });
+
+  bot.callbackQuery('settings:lang_custom', async (ctx) => {
+    await ctx.answerCallbackQuery();
+    ctx.session.mode = { type: 'settings:lang_custom' };
+    await ctx.editMessageText(t(ctx.lang).settings.lang_custom_prompt, {
+      parse_mode: 'HTML',
+    });
+  });
 }
 
 function isValidTz(tz: string): boolean {
@@ -76,6 +90,40 @@ function isValidTz(tz: string): boolean {
     return true;
   } catch {
     return false;
+  }
+}
+
+export async function handleLangCustom(ctx: BotCtx, text: string): Promise<boolean> {
+  if (ctx.session.mode?.type !== 'settings:lang_custom') return false;
+  const userId = ctx.from?.id;
+  if (!userId) return true;
+  try {
+    const intent = await withTyping(ctx, () =>
+      resolveIntent(`set my bot language to ${text}`, ctx.lang, userId)
+    );
+    if (intent?.action === 'set_language') {
+      ctx.session.mode = undefined;
+      await refreshUser(ctx, { lang: intent.lang });
+      const note = await resolveIntent(
+        `Acknowledge in ONE short sentence that the bot language is now ${intent.lang}. Mention that menu buttons stay in English but chat replies will be in their language.`,
+        intent.lang,
+        userId,
+      );
+      const fallback = `Language set to ${intent.lang}. Menus remain in English; chat replies will be in your language.`;
+      const msg = note?.action === 'chat' ? note.reply : fallback;
+      await ctx.reply(msg);
+      await showSettings(ctx, false);
+      return true;
+    }
+    const msg = ctx.lang.toLowerCase().startsWith('ru')
+      ? `Не понял язык из «${text}». Попробуй английское название (Spanish, German) или код (es, de).`
+      : `Couldn't resolve "${text}" to a language. Try an English name (Spanish, German) or code (es, de).`;
+    await ctx.reply(msg);
+    return true;
+  } catch (e) {
+    ctx.session.mode = undefined;
+    await replyError(ctx, e, `resolving language from "${text}"`);
+    return true;
   }
 }
 

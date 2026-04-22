@@ -1,7 +1,11 @@
 import { DEFAULT_WATCHLIST } from '../data/currencies.ts';
 import { DEFAULT_TZ } from './timezones.ts';
 
-export type Lang = 'en' | 'ru';
+/** BCP-47 language tag: 'en', 'ru', 'de', 'uk-UA' and so on. Only 'en'
+ * and 'ru' have full menu translations; other languages fall back to
+ * English for UI strings while the LLM still replies in the chosen
+ * language. */
+export type Lang = string;
 
 export type UserPrefs = {
   lang: Lang;

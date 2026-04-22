@@ -23,6 +23,7 @@ export type SessionData = {
     | { type: 'digest:pair' }
     | { type: 'digest:time'; scope: 'pair' | 'watchlist'; base: string; target: string }
     | { type: 'settings:tz_custom' }
+    | { type: 'settings:lang_custom' }
     | { type: 'pending_compound'; summary: string; steps: unknown[] };
 };
 

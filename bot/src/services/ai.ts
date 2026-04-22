@@ -1,4 +1,5 @@
 import type { ChatTurn, Lang } from './storage.ts';
+import { languageName } from '../i18n/index.ts';
 import { withLlmSemaphore } from './queue.ts';
 
 export type Intent =
@@ -10,7 +11,7 @@ export type Intent =
   | { action: 'list_alerts' }
   | { action: 'delete_alert'; base?: string; target?: string; conditionType?: string; all?: boolean }
   | { action: 'set_timezone'; tz: string }
-  | { action: 'set_language'; lang: 'en' | 'ru' }
+  | { action: 'set_language'; lang: string }
   | { action: 'reset' }
   | { action: 'help' }
   | { action: 'compound'; summary: string; steps: Intent[] }
@@ -26,7 +27,7 @@ const SUPPORTED_ISO =
 
 const SYSTEM_PROMPT = (lang: Lang) =>
   `You are a helpful currency exchange assistant inside a Telegram bot. The user writes in ${
-    lang === 'ru' ? 'Russian' : 'English'
+    languageName(lang)
   } and may use slang, symbols, or vague phrasing.
 
 Reply with ONE JSON object — no markdown, no code fences, no commentary. Pick the best action:
@@ -44,7 +45,7 @@ Reply with ONE JSON object — no markdown, no code fences, no commentary. Pick 
 6. {"action":"list_alerts"} — user wants to see their currently-active alerts and digests ("what alerts do I have?", "какие у меня алерты").
 7. {"action":"delete_alert","base":"<ISO>","target":"<ISO>","conditionType":"above"|"below"|"pct_up"|"pct_down"|"daily_digest","all":<bool>} — user wants to remove an alert. Include ONLY the fields they mentioned; omit the rest. If the user says "delete all" / "удали все" / "remove everything" / "снеси всё", set "all":true (and skip base/target/conditionType unless they also narrowed it). Examples: "delete EUR/HUF digest" → base=EUR,target=HUF,conditionType=daily_digest. "удали все алерты по евро" → base=EUR,all=true. "remove all my alerts" → all=true.
 8. {"action":"set_timezone","tz":"<IANA>"} — user wants to change time zone. Use full IANA names like 'Europe/Prague', 'America/Chicago', 'Asia/Seoul', 'Asia/Bangkok'. If the user names only a country, pick its capital or main financial city. If the city is ambiguous, pick the most likely.
-9. {"action":"set_language","lang":"en"|"ru"} — user wants to switch bot language.
+9. {"action":"set_language","lang":"<BCP-47 code>"} — user wants to switch bot language. Use ISO 639-1 codes like "en", "ru", "uk", "de", "fr", "es", "it", "pt", "pl", "cs", "tr", "ja", "zh", "ar", "he". The bot has full menu translations only for "en" and "ru"; for any other code the menus stay in English but your free-form replies are in that language.
 10. {"action":"reset"} — user wants to wipe all their bot data and start over ("reset everything", "сбрось всё", "начать с нуля", "delete my account").
 11. {"action":"help"} — user asks what the bot can do, how to use it.
 12. {"action":"compound","summary":"<one-paragraph plain-language summary of the whole plan in the user's language>","steps":[<2 to 5 atomic intents>]} — the user asked for TWO OR MORE related actions in one message. Examples:
@@ -52,7 +53,7 @@ Reply with ONE JSON object — no markdown, no code fences, no commentary. Pick 
     • "Switch to English and delete all my alerts" → steps = [set_language(en), delete_alert(all=true)].
     NEVER nest compound inside steps. NEVER use compound for a single action. The summary must plainly list what will happen so the user can confirm.
 13. {"action":"chat","reply":"<short message in ${
-    lang === 'ru' ? 'Russian' : 'English'
+    languageName(lang)
   }>"} — greetings, off-topic, clarifications, smalltalk.
 
 Currency ISO codes you may use: ${SUPPORTED_ISO}.
@@ -64,7 +65,7 @@ Guidelines:
 - If user asks for a chart/graph/история/динамика — use "chart".
 - If user sends a single currency name with no context — use "watch" with that currency as base.
 - Off-topic or small talk: "chat" with a warm 1-2 sentence reply in ${
-    lang === 'ru' ? 'Russian' : 'English'
+    languageName(lang)
   }, then gently remind them you track currencies.
 - If the input is utter gibberish — "chat" asking politely what they need.
 - CONTEXT: previous assistant turns describe what you already did (e.g. "Opened EUR/HUF chart at 1M"). If the user follows up with a short phrase like "а за неделю?", "now in USD?", "и график", resolve the referents from those previous turns. Reuse the same currency pair / amount / timeframe unless the user explicitly changes them.
@@ -172,8 +173,11 @@ export function validateIntent(obj: unknown): Intent | null {
       return { action: 'set_timezone', tz: o.tz };
     }
     case 'set_language': {
-      if (o.lang !== 'en' && o.lang !== 'ru') return null;
-      return { action: 'set_language', lang: o.lang };
+      if (typeof o.lang !== 'string' || !o.lang.trim()) return null;
+      // Keep it to a reasonable BCP-47 shape: letters, digits, hyphen, up to 12 chars.
+      const lang = o.lang.slice(0, 12);
+      if (!/^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,4})?$/.test(lang)) return null;
+      return { action: 'set_language', lang };
     }
     case 'help':
       return { action: 'help' };
@@ -252,7 +256,7 @@ export async function resolveIntent(
 
 const ERROR_PROMPT = (lang: Lang) =>
   `You are a warm, helpful assistant inside a Telegram currency bot. Something went wrong for a user.
-Reply in ${lang === 'ru' ? 'Russian' : 'English'}, plain text, no markdown, 1-2 sentences max (under 300 chars):
+Reply in ${languageName(lang)}, plain text, no markdown, 1-2 sentences max (under 300 chars):
 1. Briefly acknowledge what didn't work in everyday language (no stack traces, no code words, no error IDs).
 2. Suggest one concrete next step (retry, different format, contact, or alternative).
 Tone: friendly, not robotic. Never reveal internal details or file paths.`;

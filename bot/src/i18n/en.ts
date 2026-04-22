@@ -80,6 +80,8 @@ export const en = {
     tz_prompt: 'Pick your time zone (used for daily digests):',
     tz_custom: '✏️ Other city',
     tz_custom_prompt: 'Send a city name (English works best): <b>Prague</b>, <b>Seoul</b>, <b>Tel Aviv</b>…',
+    lang_custom: '✏️ Other language',
+    lang_custom_prompt: 'Send a language name or code — <b>Spanish</b>, <b>Français</b>, <b>de</b>. Menu stays in English, chat replies switch to your language.',
     about: 'About',
   },
   digest: {
