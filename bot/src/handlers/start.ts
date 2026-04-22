@@ -1,7 +1,8 @@
 import { InlineKeyboard, type Bot } from 'grammy';
 import type { BotCtx } from '../bot.ts';
 import { refreshUser } from '../bot.ts';
-import { t, tpl } from '../i18n/index.ts';
+import { isSupportedLang, SUPPORTED_LANGS, t, tpl } from '../i18n/index.ts';
+import { LANGUAGES } from '../i18n/languages.ts';
 import { mainMenu } from '../keyboards.ts';
 import { resetUser } from '../services/storage.ts';
 
@@ -11,10 +12,15 @@ const ONBOARDING_TEXT =
   'Выбери язык, чтобы продолжить.';
 
 function onboardingKeyboard(): InlineKeyboard {
-  return new InlineKeyboard()
-    .text('🇬🇧 English', 'onboard:lang:en')
-    .text('🇷🇺 Русский', 'onboard:lang:ru');
+  const kb = new InlineKeyboard();
+  LANGUAGES.forEach((lang, i) => {
+    kb.text(`${lang.flag} ${lang.native}`, `onboard:lang:${lang.id}`);
+    if (i % 2 === 1) kb.row();
+  });
+  return kb;
 }
+
+const ONBOARD_CALLBACK = new RegExp(`^onboard:lang:(${SUPPORTED_LANGS.join('|')})$`);
 
 async function showGreeting(ctx: BotCtx, edit = false): Promise<void> {
   const T = t(ctx.lang).start;
@@ -40,8 +46,12 @@ export function registerStart(bot: Bot<BotCtx>): void {
     await showGreeting(ctx);
   });
 
-  bot.callbackQuery(/^onboard:lang:(ru|en)$/, async (ctx) => {
-    const lang = ctx.match[1] as 'ru' | 'en';
+  bot.callbackQuery(ONBOARD_CALLBACK, async (ctx) => {
+    const lang = ctx.match[1];
+    if (!isSupportedLang(lang)) {
+      await ctx.answerCallbackQuery();
+      return;
+    }
     await refreshUser(ctx, { lang, onboarded: true });
     await ctx.answerCallbackQuery({ text: t(ctx.lang).settings.lang_changed });
     await showGreeting(ctx, true);
