@@ -27,6 +27,15 @@ export type Dict = {
     '6M': string;
     '1Y': string;
     '2Y': string;
+    custom: string;
+  };
+  customRange: {
+    title: string;
+    from: string;
+    to: string;
+    apply: string;
+    cancel: string;
+    invalid: string;
   };
   swap: string;
   from: string;
@@ -37,11 +46,6 @@ export type Dict = {
     subtitle: string;
     chooseLanguage: string;
     continue: string;
-  };
-  smart: {
-    placeholder: string;
-    send: string;
-    unknown: string;
   };
 };
 
@@ -74,6 +78,15 @@ export const en: Dict = {
     '6M': '6M',
     '1Y': '1Y',
     '2Y': '2Y',
+    custom: 'Custom',
+  },
+  customRange: {
+    title: 'Custom date range',
+    from: 'From',
+    to: 'To',
+    apply: 'Apply',
+    cancel: 'Cancel',
+    invalid: 'Start date must be before end date',
   },
   swap: 'Swap',
   from: 'From',
@@ -84,10 +97,5 @@ export const en: Dict = {
     subtitle: 'Live rates, charts, and a feel for where the market is going.',
     chooseLanguage: 'Choose your language',
     continue: 'Continue',
-  },
-  smart: {
-    placeholder: 'Try: 100 usd eur · chart eur usd · what\'s up with BTC?',
-    send: 'Send',
-    unknown: "Didn't quite get that — try something like \"100 usd eur\" or \"chart eur usd 1m\".",
   },
 };

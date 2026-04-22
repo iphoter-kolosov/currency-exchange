@@ -5,11 +5,8 @@ import { fetchLatest, getLastLatestAge, type RateMap } from '../api/rates';
 import { CurrencyRow } from './CurrencyRow';
 import { TopBar } from './TopBar';
 import { CurrencyPicker } from './CurrencyPicker';
-import { SmartInput } from './SmartInput';
 import { formatTemplate, useT } from '../i18n';
 import { formatDateShort } from '../utils/format';
-import type { Intent } from '../services/ai';
-import type { Timeframe } from '../utils/dates';
 
 export function ConvertView() {
   const { t, lang } = useT();
@@ -21,9 +18,6 @@ export function ConvertView() {
   const setAmount = useStore((s) => s.setAmount);
   const addCurrency = useStore((s) => s.addCurrency);
   const removeCurrency = useStore((s) => s.removeCurrency);
-  const setView = useStore((s) => s.setView);
-  const setChartPair = useStore((s) => s.setChartPair);
-  const setTimeframe = useStore((s) => s.setTimeframe);
 
   const [rates, setRates] = useState<RateMap | null>(null);
   const [ratesBase, setRatesBase] = useState<string>('usd');
@@ -32,55 +26,6 @@ export function ConvertView() {
   const [errored, setErrored] = useState(false);
   const [offlineFrom, setOfflineFrom] = useState<number | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [bubble, setBubble] = useState<string | null>(null);
-
-  const applyIntent = useCallback(
-    (intent: Intent) => {
-      setBubble(null);
-      switch (intent.action) {
-        case 'convert': {
-          const from = intent.from.toLowerCase();
-          const to = intent.to.toLowerCase();
-          if (!CURRENCY_BY_CODE[from] || !CURRENCY_BY_CODE[to]) return;
-          addCurrency(from);
-          addCurrency(to);
-          setActive(from);
-          setAmount(intent.amount);
-          return;
-        }
-        case 'rate': {
-          const from = intent.from.toLowerCase();
-          const to = intent.to.toLowerCase();
-          if (!CURRENCY_BY_CODE[from] || !CURRENCY_BY_CODE[to]) return;
-          addCurrency(from);
-          addCurrency(to);
-          setActive(from);
-          setAmount(1);
-          return;
-        }
-        case 'watch': {
-          const base = intent.base.toLowerCase();
-          if (!CURRENCY_BY_CODE[base]) return;
-          addCurrency(base);
-          setActive(base);
-          return;
-        }
-        case 'chart': {
-          const from = intent.from.toLowerCase();
-          const to = intent.to.toLowerCase();
-          if (!CURRENCY_BY_CODE[from] || !CURRENCY_BY_CODE[to]) return;
-          setChartPair(from, to);
-          setTimeframe(intent.tf as Timeframe);
-          setView('chart');
-          return;
-        }
-        case 'chat':
-          setBubble(intent.reply);
-          return;
-      }
-    },
-    [addCurrency, setActive, setAmount, setChartPair, setTimeframe, setView],
-  );
 
   const loadRates = useCallback(async () => {
     setLoading(true);
@@ -139,21 +84,6 @@ export function ConvertView() {
           <>
             {offlineFrom !== null ? (
               <div className="status offline">{t.offline}</div>
-            ) : null}
-
-            <SmartInput onIntent={applyIntent} onChat={setBubble} />
-
-            {bubble ? (
-              <div className="chat-bubble" role="status">
-                <div className="chat-bubble-text">{bubble}</div>
-                <button
-                  className="chat-bubble-close"
-                  onClick={() => setBubble(null)}
-                  aria-label={t.close}
-                >
-                  ×
-                </button>
-              </div>
             ) : null}
 
             <div className="list">

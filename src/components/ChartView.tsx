@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useStore } from '../state/store';
 import { CURRENCY_BY_CODE } from '../data/currencies';
-import { fetchSeries, type SeriesPoint } from '../api/rates';
+import { fetchSeries, fetchSeriesRange, type SeriesPoint } from '../api/rates';
 import { TimeframeTabs } from './TimeframeTabs';
+import { CustomRangePicker } from './CustomRangePicker';
 import { TopBar } from './TopBar';
 import { CurrencyPicker } from './CurrencyPicker';
 import { Flag } from './Flag';
@@ -15,21 +16,27 @@ export function ChartView() {
   const base = useStore((s) => s.chartBase);
   const target = useStore((s) => s.chartTarget);
   const timeframe = useStore((s) => s.timeframe);
+  const customRange = useStore((s) => s.customRange);
   const setChartPair = useStore((s) => s.setChartPair);
   const swap = useStore((s) => s.swapChartPair);
   const setTimeframe = useStore((s) => s.setTimeframe);
+  const setCustomRange = useStore((s) => s.setCustomRange);
 
   const [series, setSeries] = useState<SeriesPoint[]>([]);
   const [loading, setLoading] = useState(false);
   const [errored, setErrored] = useState(false);
 
   const [picker, setPicker] = useState<null | 'base' | 'target'>(null);
+  const [rangeOpen, setRangeOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setErrored(false);
-    fetchSeries(base, target, timeframe)
+    const fetcher = customRange
+      ? fetchSeriesRange(base, target, customRange.from, customRange.to)
+      : fetchSeries(base, target, timeframe);
+    fetcher
       .then((s) => {
         if (!cancelled) setSeries(s);
       })
@@ -42,7 +49,7 @@ export function ChartView() {
     return () => {
       cancelled = true;
     };
-  }, [base, target, timeframe]);
+  }, [base, target, timeframe, customRange]);
 
   const baseCur = CURRENCY_BY_CODE[base];
   const targetCur = CURRENCY_BY_CODE[target];
@@ -93,6 +100,11 @@ export function ChartView() {
                   style={{ color: pctChange < 0 ? '#ef4444' : '#22c55e' }}
                 >
                   {formatPercent(pctChange, lang)}
+                </span>
+              ) : null}
+              {customRange ? (
+                <span className="chart-range-label">
+                  {customRange.from} — {customRange.to}
                 </span>
               ) : null}
             </div>
@@ -153,7 +165,12 @@ export function ChartView() {
           )}
         </div>
 
-        <TimeframeTabs value={timeframe} onChange={setTimeframe} />
+        <TimeframeTabs
+          value={timeframe}
+          customActive={customRange !== null}
+          onChange={setTimeframe}
+          onCustom={() => setRangeOpen(true)}
+        />
 
         <div className="pair-row">
           <button className="pair-btn" onClick={() => setPicker('base')}>
@@ -174,6 +191,17 @@ export function ChartView() {
           if (picker === 'base') setChartPair(code, target);
           if (picker === 'target') setChartPair(base, code);
         }}
+      />
+
+      <CustomRangePicker
+        open={rangeOpen}
+        initialFrom={customRange?.from ?? null}
+        initialTo={customRange?.to ?? null}
+        onApply={(from, to) => {
+          setCustomRange({ from, to });
+          setRangeOpen(false);
+        }}
+        onClose={() => setRangeOpen(false)}
       />
     </>
   );
