@@ -64,7 +64,7 @@ export async function handleChartPair(ctx: BotCtx, text: string): Promise<boolea
   return true;
 }
 
-async function sendChart(
+export async function sendChart(
   ctx: BotCtx,
   base: string,
   target: string,
