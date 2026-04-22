@@ -18,6 +18,7 @@ export type AppState = {
   timeframe: Timeframe;
 
   language: Language;
+  onboarded: boolean;
 
   setActive: (code: string) => void;
   setAmount: (amount: number) => void;
@@ -30,6 +31,7 @@ export type AppState = {
   swapChartPair: () => void;
   setTimeframe: (tf: Timeframe) => void;
   setLanguage: (lang: Language) => void;
+  setOnboarded: (onboarded: boolean) => void;
 };
 
 function detectLanguage(): Language {
@@ -52,6 +54,7 @@ export const useStore = create<AppState>()(
       timeframe: '1M',
 
       language: detectLanguage(),
+      onboarded: false,
 
       setActive: (code) => set({ activeCode: code }),
       setAmount: (amount) => set({ amount }),
@@ -95,6 +98,7 @@ export const useStore = create<AppState>()(
 
       setTimeframe: (tf) => set({ timeframe: tf }),
       setLanguage: (lang) => set({ language: lang }),
+      setOnboarded: (onboarded) => set({ onboarded }),
     }),
     {
       name: 'currency-exchange-v1',
@@ -106,6 +110,7 @@ export const useStore = create<AppState>()(
         chartTarget: s.chartTarget,
         timeframe: s.timeframe,
         language: s.language,
+        onboarded: s.onboarded,
       }),
     },
   ),

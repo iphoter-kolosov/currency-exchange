@@ -32,6 +32,12 @@ export type Dict = {
   from: string;
   to: string;
   empty: string;
+  onboarding: {
+    welcome: string;
+    subtitle: string;
+    chooseLanguage: string;
+    continue: string;
+  };
 };
 
 export const en: Dict = {
@@ -68,4 +74,10 @@ export const en: Dict = {
   from: 'From',
   to: 'To',
   empty: 'No currencies yet. Tap + to add one.',
+  onboarding: {
+    welcome: 'Welcome',
+    subtitle: 'Live rates, charts, and a feel for where the market is going.',
+    chooseLanguage: 'Choose your language',
+    continue: 'Continue',
+  },
 };
