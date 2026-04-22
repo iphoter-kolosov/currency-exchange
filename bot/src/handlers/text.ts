@@ -19,6 +19,7 @@ import {
 import { findCurrency } from '../data/currencies.ts';
 import type { Timeframe } from '../services/dates.ts';
 import { tzLabel } from '../services/timezones.ts';
+import { withUserLock } from '../services/queue.ts';
 import { t } from '../i18n/index.ts';
 import { showAlertList } from './alerts.ts';
 import { askReset } from './start.ts';
@@ -28,19 +29,24 @@ async function handleAiFallback(ctx: BotCtx, text: string): Promise<boolean> {
   if (!userId) return false;
   if (ctx.session.mode) return false;
 
-  ctx.replyWithChatAction('typing').catch(() => {});
-  const history = await getContext(userId).catch(() => []);
-  const intent = await resolveIntent(text, ctx.lang, userId, history);
-  if (!intent) {
-    const msg = ctx.lang === 'ru'
-      ? 'Не уловил мысль — связь с моделью пропала или запрос неоднозначный. Попробуй переформулировать или нажми /help.'
-      : "Didn't catch that — the model may be slow right now, or the request is ambiguous. Try rephrasing or tap /help.";
-    await ctx.reply(msg);
+  // Serialize per user so a burst of messages is processed one by one —
+  // each reply arrives in the same order the user sent them, and the
+  // context built by appendContext reflects the true chronology.
+  return await withUserLock(userId, async () => {
+    ctx.replyWithChatAction('typing').catch(() => {});
+    const history = await getContext(userId).catch(() => []);
+    const intent = await resolveIntent(text, ctx.lang, userId, history);
+    if (!intent) {
+      const msg = ctx.lang === 'ru'
+        ? 'Не уловил мысль — связь с моделью пропала или запрос неоднозначный. Попробуй переформулировать или нажми /help.'
+        : "Didn't catch that — the model may be slow right now, or the request is ambiguous. Try rephrasing or tap /help.";
+      await ctx.reply(msg);
+      return true;
+    }
+    const trace = await runIntent(ctx, intent);
+    if (trace) await appendContext(userId, text, trace).catch(() => {});
     return true;
-  }
-  const trace = await runIntent(ctx, intent);
-  if (trace) await appendContext(userId, text, trace).catch(() => {});
-  return true;
+  });
 }
 
 async function runIntent(ctx: BotCtx, intent: Intent): Promise<string | null> {

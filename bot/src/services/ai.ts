@@ -1,4 +1,5 @@
 import type { ChatTurn, Lang } from './storage.ts';
+import { withLlmSemaphore } from './queue.ts';
 
 export type Intent =
   | { action: 'convert'; amount: number; from: string; to: string }
@@ -206,45 +207,47 @@ export async function resolveIntent(
     jsonMode: true,
   });
 
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
-    try {
-      const res = await fetch(POLLINATIONS_URL, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body,
-        signal: ctrl.signal,
-      });
-      if (!res.ok) {
-        console.warn(`pollinations attempt ${attempt}: status ${res.status}`);
-        if (res.status >= 500 && attempt === 0) {
-          await new Promise((r) => setTimeout(r, 600));
+  return await withLlmSemaphore(async () => {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
+      try {
+        const res = await fetch(POLLINATIONS_URL, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body,
+          signal: ctrl.signal,
+        });
+        if (!res.ok) {
+          console.warn(`pollinations attempt ${attempt}: status ${res.status}`);
+          if ((res.status >= 500 || res.status === 429) && attempt === 0) {
+            await new Promise((r) => setTimeout(r, 800));
+            continue;
+          }
+          return null;
+        }
+        const text = await res.text();
+        const parsed = extractJson(text);
+        const intent = validateIntent(parsed);
+        if (!intent) {
+          console.warn(`pollinations attempt ${attempt}: unparseable response`, text.slice(0, 200));
+          return null;
+        }
+        return intent;
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.warn(`pollinations attempt ${attempt}: ${msg}`);
+        if (attempt === 0) {
+          await new Promise((r) => setTimeout(r, 800));
           continue;
         }
         return null;
+      } finally {
+        clearTimeout(timer);
       }
-      const text = await res.text();
-      const parsed = extractJson(text);
-      const intent = validateIntent(parsed);
-      if (!intent) {
-        console.warn(`pollinations attempt ${attempt}: unparseable response`, text.slice(0, 200));
-        return null;
-      }
-      return intent;
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      console.warn(`pollinations attempt ${attempt}: ${msg}`);
-      if (attempt === 0) {
-        await new Promise((r) => setTimeout(r, 600));
-        continue;
-      }
-      return null;
-    } finally {
-      clearTimeout(timer);
     }
-  }
-  return null;
+    return null;
+  });
 }
 
 const ERROR_PROMPT = (lang: Lang) =>
@@ -263,33 +266,34 @@ export async function explainError(
   if (!checkRateLimit(userId)) return null;
   const errMsg = error instanceof Error ? error.message : String(error);
 
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
-
-  try {
-    const res = await fetch(POLLINATIONS_URL, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        messages: [
-          { role: 'system', content: ERROR_PROMPT(lang) },
-          {
-            role: 'user',
-            content:
-              `User was trying to: ${userContext}\nTechnical error (internal, do not quote): ${errMsg.slice(0, 300)}\nWrite the friendly explanation now.`,
-          },
-        ],
-        model: 'openai',
-      }),
-      signal: ctrl.signal,
-    });
-    if (!res.ok) return null;
-    const body = (await res.text()).trim();
-    if (!body) return null;
-    return body.slice(0, 400);
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
+  return await withLlmSemaphore(async () => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
+    try {
+      const res = await fetch(POLLINATIONS_URL, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          messages: [
+            { role: 'system', content: ERROR_PROMPT(lang) },
+            {
+              role: 'user',
+              content:
+                `User was trying to: ${userContext}\nTechnical error (internal, do not quote): ${errMsg.slice(0, 300)}\nWrite the friendly explanation now.`,
+            },
+          ],
+          model: 'openai',
+        }),
+        signal: ctrl.signal,
+      });
+      if (!res.ok) return null;
+      const body = (await res.text()).trim();
+      if (!body) return null;
+      return body.slice(0, 400);
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  });
 }
