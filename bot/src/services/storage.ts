@@ -47,6 +47,7 @@ const K_USER = (uid: number) => ['user', uid] as const;
 const K_ALERT = (uid: number, aid: string) => ['alert', uid, aid] as const;
 const K_ALERTS_BY_USER = (uid: number) => ['alert', uid] as const;
 const K_ALL_ALERTS = () => ['alert'] as const;
+const K_LAST_INTENT = (uid: number) => ['last_intent', uid] as const;
 
 export async function getUser(userId: number, hintLang?: Lang): Promise<UserPrefs> {
   const k = await getKv();
@@ -163,5 +164,29 @@ export async function resetUser(userId: number): Promise<void> {
   }
   await k.delete(K_USER(userId));
   await k.delete(K_CONTEXT(userId));
+  await k.delete(K_LAST_INTENT(userId));
+}
+
+/** Snapshot of the user's most recent currency-query intent. Lets
+ * handlers resolve follow-ups like "в евро" (swap target), "за вчера"
+ * (add date) without going back to the LLM. Serialised as plain ISO
+ * codes so it survives KV round-trips. */
+export type LastIntent =
+  | { kind: 'convert'; amount: number; fromCode: string; toCode: string }
+  | { kind: 'rate'; fromCode: string; toCode: string }
+  | { kind: 'historical'; fromCode: string; toCode: string; date: string }
+  | { kind: 'watch'; baseCode: string };
+
+const LAST_INTENT_TTL_MS = 15 * 60 * 1000;
+
+export async function getLastIntent(userId: number): Promise<LastIntent | null> {
+  const k = await getKv();
+  const entry = await k.get<LastIntent>(K_LAST_INTENT(userId));
+  return entry.value ?? null;
+}
+
+export async function setLastIntent(userId: number, intent: LastIntent): Promise<void> {
+  const k = await getKv();
+  await k.set(K_LAST_INTENT(userId), intent, { expireIn: LAST_INTENT_TTL_MS });
 }
 
