@@ -165,3 +165,21 @@ export async function resetUser(userId: number): Promise<void> {
   await k.delete(K_USER(userId));
   await k.delete(K_CONTEXT(userId));
 }
+
+export type UiLabelsEntry = {
+  version: string;
+  labels: Record<string, string>;
+};
+
+const K_UI = (lang: string) => ['ui', lang] as const;
+
+export async function getUiLabels(lang: string): Promise<UiLabelsEntry | null> {
+  const k = await getKv();
+  const entry = await k.get<UiLabelsEntry>(K_UI(lang));
+  return entry.value ?? null;
+}
+
+export async function saveUiLabels(lang: string, entry: UiLabelsEntry): Promise<void> {
+  const k = await getKv();
+  await k.set(K_UI(lang), entry);
+}

@@ -1,6 +1,6 @@
 import { Bot, Context, GrammyError, HttpError, session, type SessionFlavor } from 'grammy';
 import { getUser, updateUser, type Lang, type UserPrefs } from './services/storage.ts';
-import { detectLang, t } from './i18n/index.ts';
+import { detectLang, ensureLabelsFromCache, t } from './i18n/index.ts';
 import { explainError } from './services/ai.ts';
 import { mainMenu } from './keyboards.ts';
 import { registerStart } from './handlers/start.ts';
@@ -45,6 +45,11 @@ export function createBot(token: string): Bot<BotCtx> {
     const hint = detectLang(ctx.from?.language_code);
     ctx.user = await getUser(uid, hint);
     ctx.lang = ctx.user.lang;
+    // Load LLM-translated button labels from KV (or fall through to EN)
+    // so that t(ctx.lang) already returns a localised dict by the time
+    // any handler reads from it. Does not trigger translation — that
+    // only happens at set_language time.
+    await ensureLabelsFromCache(ctx.user.lang);
     if (ctx.message?.text?.startsWith('/')) {
       ctx.session.mode = undefined;
     }

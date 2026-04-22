@@ -20,7 +20,7 @@ import { findCurrency } from '../data/currencies.ts';
 import type { Timeframe } from '../services/dates.ts';
 import { tzLabel } from '../services/timezones.ts';
 import { withUserLock } from '../services/queue.ts';
-import { t } from '../i18n/index.ts';
+import { t, translateAndCacheLabels } from '../i18n/index.ts';
 import { showAlertList } from './alerts.ts';
 import { askReset } from './start.ts';
 
@@ -142,17 +142,15 @@ async function runIntent(ctx: BotCtx, intent: Intent): Promise<string | null> {
       if (prefix === 'en' || prefix === 'ru') {
         await ctx.reply(t(ctx.lang).settings.lang_changed);
       } else {
-        // No menu translation for this language — tell the user via the LLM
-        // itself so the confirmation lands in their language.
-        const userId = ctx.from?.id ?? 0;
-        const note = await resolveIntent(
-          `Acknowledge that the bot language is now set to ${intent.lang}. Mention in ONE short sentence that menu buttons stay in English but you will always reply in their language. Use action="chat".`,
-          intent.lang,
-          userId,
-        );
-        const fallback = `Language set to ${intent.lang}. Menus remain in English; chat replies will be in your language.`;
-        const text = note?.action === 'chat' ? note.reply : fallback;
-        await ctx.reply(text);
+        ctx.replyWithChatAction('typing').catch(() => {});
+        const ok = await translateAndCacheLabels(intent.lang);
+        await ctx.reply(t(ctx.lang).settings.lang_changed);
+        if (!ok) {
+          const fallbackNote = ctx.lang.toLowerCase().startsWith('ru')
+            ? 'Перевод меню пока не готов — покажу на английском. Попробуй ещё раз позже.'
+            : 'Menu translation not ready — buttons stay in English for now. Try again in a moment.';
+          await ctx.reply(fallbackNote);
+        }
       }
       return `Language set to ${intent.lang}`;
     }

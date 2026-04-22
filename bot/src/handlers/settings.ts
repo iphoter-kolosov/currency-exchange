@@ -1,7 +1,7 @@
 import { InlineKeyboard, type Bot } from 'grammy';
 import type { BotCtx } from '../bot.ts';
 import { refreshUser } from '../bot.ts';
-import { t } from '../i18n/index.ts';
+import { t, translateAndCacheLabels } from '../i18n/index.ts';
 import { timezoneMenu } from '../keyboards.ts';
 import { TIMEZONES, tzLabel } from '../services/timezones.ts';
 import { resolveIntent } from '../services/ai.ts';
@@ -104,14 +104,11 @@ export async function handleLangCustom(ctx: BotCtx, text: string): Promise<boole
     if (intent?.action === 'set_language') {
       ctx.session.mode = undefined;
       await refreshUser(ctx, { lang: intent.lang });
-      const note = await resolveIntent(
-        `Acknowledge in ONE short sentence that the bot language is now ${intent.lang}. Mention that menu buttons stay in English but chat replies will be in their language.`,
-        intent.lang,
-        userId,
-      );
-      const fallback = `Language set to ${intent.lang}. Menus remain in English; chat replies will be in your language.`;
-      const msg = note?.action === 'chat' ? note.reply : fallback;
-      await ctx.reply(msg);
+      const prefix = intent.lang.toLowerCase().slice(0, 2);
+      if (prefix !== 'en' && prefix !== 'ru') {
+        await withTyping(ctx, () => translateAndCacheLabels(intent.lang));
+      }
+      await ctx.reply(t(ctx.lang).settings.lang_changed);
       await showSettings(ctx, false);
       return true;
     }
