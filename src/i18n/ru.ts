@@ -40,4 +40,9 @@ export const ru: Dict = {
     chooseLanguage: 'Выбери язык',
     continue: 'Продолжить',
   },
+  smart: {
+    placeholder: 'Попробуй: 100 usd eur · график eur usd · что там с битком?',
+    send: 'Отправить',
+    unknown: 'Не разобрал. Попробуй «100 usd eur» или «график евро доллар за месяц».',
+  },
 };

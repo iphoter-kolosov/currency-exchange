@@ -38,6 +38,11 @@ export type Dict = {
     chooseLanguage: string;
     continue: string;
   };
+  smart: {
+    placeholder: string;
+    send: string;
+    unknown: string;
+  };
 };
 
 export const en: Dict = {
@@ -79,5 +84,10 @@ export const en: Dict = {
     subtitle: 'Live rates, charts, and a feel for where the market is going.',
     chooseLanguage: 'Choose your language',
     continue: 'Continue',
+  },
+  smart: {
+    placeholder: 'Try: 100 usd eur · chart eur usd · what\'s up with BTC?',
+    send: 'Send',
+    unknown: "Didn't quite get that — try something like \"100 usd eur\" or \"chart eur usd 1m\".",
   },
 };
