@@ -1,7 +1,7 @@
 export const en = {
   start: {
     greeting: (name: string) =>
-      `Hey ${name} 👋\n\nI'll keep an eye on currency rates for you — live conversions, charts, and a heads-up when the market moves.\n\n<b>Quick try</b>\n• <code>100 usd eur</code> — convert\n• <code>eur usd</code> — current rate\n• <code>50€ in ₴</code> — symbols also work\n\nOr pick something from the menu 👇`,
+      `Hey ${name} 👋\n\nI'm your currency assistant: live rates, charts, alerts, and daily digests.\n\n<b>Just write — I'll understand</b>\n• <code>100 usd eur</code> — convert\n• <code>eur</code> — see all your rates vs EUR\n• <code>chart euro to dollar for a year</code>\n• <code>every day at 9am euro to dollar</code>\n\nOr tap a button below 👇`,
     menu_convert: '💱 Convert',
     menu_watch: '👁 Watchlist',
     menu_chart: '📈 Chart',
@@ -100,25 +100,28 @@ export const en = {
     time_invalid: 'Couldn\'t read the time. Send something like <b>09:00</b> or <b>21:30</b>.',
   },
   help: {
-    text: `<b>Currency Tracker Bot</b>
+    text: `<b>What I can do</b>
 
-💱 <b>Quick convert</b>
-Just type it — <code>100 usd eur</code>, <code>1500 uah to rub</code>, <code>50€ в $</code>.
-
-📈 <b>Chart</b>
-/chart eur usd 1m — pair + timeframe (1d/1w/1m/3m/6m/1y/2y).
+💱 <b>Convert</b>
+Write naturally: <code>100 usd eur</code>, <code>1500 uah to rub</code>, <code>50€ in ₴</code>, <code>a thousand dollars to hryvnia</code>.
 
 👁 <b>Watchlist</b>
-/watch — see all your tracked rates at once.
+Send a currency code (e.g. <code>eur</code>) to see all your tracked rates against it. /watch to manage.
 
-🔔 <b>Alerts</b>
-/alerts — create and manage price alerts.
-Triggers: price above/below a level, or ±X% over 24h.
+📈 <b>Chart</b>
+<code>chart eur usd</code> or <code>динамика евро к доллару за год</code>. Tap 1D/1W/1M/3M/6M/1Y/2Y under the chart to switch — the same card updates in place.
+
+🔔 <b>Price alerts</b>
+/alerts → New alert. Get pinged when a pair crosses a price or moves ±X% in 24h.
+
+📅 <b>Daily digest</b>
+/alerts → 📅 Daily digest. Pick one pair or your whole watchlist, pick a local time — and get a morning summary with yesterday's move.
+Or just say it: <code>every day at 9am eur to usd</code>.
 
 ⚙️ <b>Settings</b>
-/settings — change language.
+/settings — language and time zone (needed for digest timing).
 
-Inline mode: type <code>@{username} 100 usd eur</code> in any chat.`,
+<i>Inline mode: type <code>@{username} 100 usd eur</code> in any chat to share a conversion card.</i>`,
   },
 };
 
