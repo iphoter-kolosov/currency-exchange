@@ -4,7 +4,7 @@ import { handleConvertText } from './convert.ts';
 import { handleWatchAdd, handleWatchBase, handleSingleCurrencyAsBase } from './watch.ts';
 import { handleChartPair, sendChart } from './chart.ts';
 import { handleAlertsPair, handleAlertsValue, handleDigestPair, handleDigestTime } from './alerts.ts';
-import { handleLangCustom, handleTzCustom } from './settings.ts';
+import { handleTzCustom } from './settings.ts';
 import { resolveIntent, validateIntent, type Intent } from '../services/ai.ts';
 import { refreshUser } from '../bot.ts';
 import {
@@ -19,7 +19,8 @@ import {
 import { findCurrency } from '../data/currencies.ts';
 import type { Timeframe } from '../services/dates.ts';
 import { tzLabel } from '../services/timezones.ts';
-import { t, tpl, translateAndCacheLabels } from '../i18n/index.ts';
+import { isSupportedLang, t, tpl } from '../i18n/index.ts';
+import { LANGUAGES } from '../i18n/languages.ts';
 import { showAlertList } from './alerts.ts';
 import { askReset } from './start.ts';
 
@@ -131,28 +132,15 @@ async function runIntent(ctx: BotCtx, intent: Intent): Promise<string | null> {
       return `Set timezone to ${intent.tz}`;
     }
     case 'set_language': {
-      const prefix = intent.lang.toLowerCase().slice(0, 2);
-      await refreshUser(ctx, { lang: intent.lang });
-      if (prefix === 'en' || prefix === 'ru') {
-        await ctx.reply(t(ctx.lang).settings.lang_changed);
-      } else {
-        // Reply right away so the webhook handler returns in < 1s.
-        // Fire translation in the background — when it finishes we
-        // send a second confirmation in the user's language.
-        const starting = `🔄 Переключаюсь на ${intent.lang}… / Switching to ${intent.lang}…`;
-        await ctx.reply(starting);
-        const chatId = ctx.chat?.id;
-        queueMicrotask(async () => {
-          const ok = await translateAndCacheLabels(intent.lang);
-          if (chatId) {
-            const msg = ok
-              ? t(intent.lang).settings.lang_changed
-              : `Language set to ${intent.lang}. Menus stay English for now — buttons will update on your next message.`;
-            await ctx.api.sendMessage(chatId, msg).catch(() => {});
-          }
-        });
+      if (!isSupportedLang(intent.lang)) {
+        const supported = LANGUAGES.map((l) => `${l.flag} ${l.native}`).join(', ');
+        await ctx.reply(tpl(t(ctx.lang).settings.lang_unsupported, { supported }));
+        return `Rejected unsupported language ${intent.lang}`;
       }
-      return `Language set to ${intent.lang}`;
+      const prefix = intent.lang.toLowerCase().slice(0, 2);
+      await refreshUser(ctx, { lang: prefix });
+      await ctx.reply(t(ctx.lang).settings.lang_changed);
+      return `Language set to ${prefix}`;
     }
     case 'help': {
       const H = t(ctx.lang).help;
@@ -262,7 +250,6 @@ export function registerText(bot: Bot<BotCtx>): void {
     if (await handleDigestPair(ctx, text)) return;
     if (await handleDigestTime(ctx, text)) return;
     if (await handleTzCustom(ctx, text)) return;
-    if (await handleLangCustom(ctx, text)) return;
 
     if (await handleConvertText(ctx, text)) return;
     if (await handleSingleCurrencyAsBase(ctx, text)) return;

@@ -2,9 +2,6 @@ import type { ChatTurn, Lang } from './storage.ts';
 import { languageName } from '../i18n/index.ts';
 import { withLlmSemaphore } from './queue.ts';
 
-// Runs in background (queueMicrotask) — can be long; Telegram doesn't wait.
-const UI_TRANSLATE_TIMEOUT_MS = 45_000;
-
 export type Intent =
   | { action: 'convert'; amount: number; from: string; to: string }
   | { action: 'rate'; from: string; to: string }
@@ -51,7 +48,7 @@ Reply with ONE JSON object — no markdown, no code fences, no commentary. Pick 
 6. {"action":"list_alerts"} — user wants to see their currently-active alerts and digests ("what alerts do I have?", "какие у меня алерты").
 7. {"action":"delete_alert","base":"<ISO>","target":"<ISO>","conditionType":"above"|"below"|"pct_up"|"pct_down"|"daily_digest","all":<bool>} — user wants to remove an alert. Include ONLY the fields they mentioned; omit the rest. If the user says "delete all" / "удали все" / "remove everything" / "снеси всё", set "all":true (and skip base/target/conditionType unless they also narrowed it). Examples: "delete EUR/HUF digest" → base=EUR,target=HUF,conditionType=daily_digest. "удали все алерты по евро" → base=EUR,all=true. "remove all my alerts" → all=true.
 8. {"action":"set_timezone","tz":"<IANA>"} — user wants to change time zone. Use full IANA names like 'Europe/Prague', 'America/Chicago', 'Asia/Seoul', 'Asia/Bangkok'. If the user names only a country, pick its capital or main financial city. If the city is ambiguous, pick the most likely.
-9. {"action":"set_language","lang":"<BCP-47 code>"} — user wants to switch bot language. Use ISO 639-1 codes like "en", "ru", "uk", "de", "fr", "es", "it", "pt", "pl", "cs", "tr", "ja", "zh", "ar", "he". The bot has full menu translations only for "en" and "ru"; for any other code the menus stay in English but your free-form replies are in that language.
+9. {"action":"set_language","lang":"<ISO 639-1 code>"} — user wants to switch bot language. Supported codes are EXACTLY these five: "en", "ru", "es", "zh", "ar". If the user asks for any other language, still return set_language with the code they asked for — the bot will tell them it isn't supported and list the five choices.
 10. {"action":"reset"} — user wants to wipe all their bot data and start over ("reset everything", "сбрось всё", "начать с нуля", "delete my account").
 11. {"action":"help"} — user asks what the bot can do, how to use it.
 12. {"action":"compound","summary":"<one-paragraph plain-language summary of the whole plan in the user's language>","steps":[<2 to 5 atomic intents>]} — the user asked for TWO OR MORE related actions in one message. Examples:
@@ -308,65 +305,3 @@ export async function explainError(
   });
 }
 
-/** Ask Pollinations to translate a flat JSON of UI strings into the
- * target language. Keys are preserved; placeholders like {name} and
- * HTML tags like <b> are left intact. Returns null on any failure so
- * the caller can fall back to English labels. */
-export async function translateUiLabels(
-  labels: Record<string, string>,
-  lang: Lang,
-): Promise<Record<string, string> | null> {
-  const targetName = languageName(lang);
-  const systemPrompt = `You are translating UI strings for a Telegram currency bot from English to ${targetName}.
-Rules:
-- Return ONE JSON object. No markdown fences, no commentary, no extra keys.
-- Keep every original key EXACTLY as-is.
-- Translate only the VALUES.
-- Preserve HTML tags like <b>, <i>, <code>. Preserve emojis and arrows verbatim.
-- Preserve curly-brace placeholders like {name}, {date}, {username} — do not translate them, just keep the braces.
-- Keep values short — they are button labels, prompts, and confirmations. Match original tone.
-- Use natural, idiomatic ${targetName} (not a literal word-for-word).`;
-
-  return await withLlmSemaphore(async () => {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), UI_TRANSLATE_TIMEOUT_MS);
-    try {
-      const res = await fetch(POLLINATIONS_URL, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: JSON.stringify(labels) },
-          ],
-          model: 'openai',
-          jsonMode: true,
-        }),
-        signal: ctrl.signal,
-      });
-      if (!res.ok) {
-        console.warn('translateUiLabels status', res.status);
-        return null;
-      }
-      const raw = (await res.text()).trim();
-      const parsed = extractJson(raw);
-      if (!parsed || typeof parsed !== 'object') return null;
-      const out: Record<string, string> = {};
-      for (const key of Object.keys(labels)) {
-        const v = (parsed as Record<string, unknown>)[key];
-        if (typeof v === 'string' && v.trim()) out[key] = v;
-      }
-      if (Object.keys(out).length < Object.keys(labels).length / 2) {
-        // Too many missing keys — treat as a garbage response.
-        console.warn('translateUiLabels too few keys returned');
-        return null;
-      }
-      return out;
-    } catch (e) {
-      console.warn('translateUiLabels failed', e instanceof Error ? e.message : e);
-      return null;
-    } finally {
-      clearTimeout(timer);
-    }
-  });
-}

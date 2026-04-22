@@ -1,6 +1,5 @@
 /** Every leaf is a plain string. Parametric strings use {name} style
- * placeholders and are rendered via the tpl() helper. This keeps the
- * whole dict JSON-serialisable so the LLM can translate any leaf. */
+ * placeholders and are rendered via the tpl() helper. */
 export type Dict = {
   start: {
     greeting: string;
@@ -67,16 +66,13 @@ export type Dict = {
   settings: {
     title: string;
     language: string;
-    language_en: string;
-    language_ru: string;
     lang_changed: string;
+    lang_unsupported: string;
     timezone: string;
     tz_changed: string;
     tz_prompt: string;
     tz_custom: string;
     tz_custom_prompt: string;
-    lang_custom: string;
-    lang_custom_prompt: string;
     about: string;
   };
   digest: {
@@ -175,16 +171,13 @@ export const en: Dict = {
   settings: {
     title: '⚙️ <b>Settings</b>',
     language: 'Language',
-    language_en: '🇬🇧 English',
-    language_ru: '🇷🇺 Русский',
     lang_changed: 'Language updated.',
+    lang_unsupported: 'That language isn\'t supported yet. Available: {supported}.',
     timezone: 'Time zone',
     tz_changed: 'Time zone updated.',
     tz_prompt: 'Pick your time zone (used for daily digests):',
     tz_custom: '✏️ Other city',
     tz_custom_prompt: 'Send a city name (English works best): <b>Prague</b>, <b>Seoul</b>, <b>Tel Aviv</b>…',
-    lang_custom: '✏️ Other language',
-    lang_custom_prompt: 'Send a language name or code — <b>Spanish</b>, <b>Français</b>, <b>de</b>. I will translate the menu on the fly.',
     about: 'About',
   },
   digest: {

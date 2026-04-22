@@ -67,16 +67,13 @@ export const ru: Dict = {
   settings: {
     title: '⚙️ <b>Настройки</b>',
     language: 'Язык',
-    language_en: '🇬🇧 English',
-    language_ru: '🇷🇺 Русский',
     lang_changed: 'Язык обновлён.',
+    lang_unsupported: 'Этот язык пока не поддерживается. Доступны: {supported}.',
     timezone: 'Часовой пояс',
     tz_changed: 'Часовой пояс обновлён.',
     tz_prompt: 'Выбери свой часовой пояс (нужен для ежедневных сводок):',
     tz_custom: '✏️ Другой город',
     tz_custom_prompt: 'Пришли название города (английский работает надёжнее): <b>Prague</b>, <b>Tel Aviv</b>, <b>Seoul</b>…',
-    lang_custom: '✏️ Другой язык',
-    lang_custom_prompt: 'Напиши название языка или код — <b>Spanish</b>, <b>Deutsch</b>, <b>uk</b>. Меню переведу на лету.',
     about: 'О боте',
   },
   digest: {

@@ -1,7 +1,8 @@
 import { InlineKeyboard, type Bot } from 'grammy';
 import type { BotCtx } from '../bot.ts';
 import { refreshUser } from '../bot.ts';
-import { t, translateAndCacheLabels } from '../i18n/index.ts';
+import { isSupportedLang, SUPPORTED_LANGS, t } from '../i18n/index.ts';
+import { LANGUAGES } from '../i18n/languages.ts';
 import { timezoneMenu } from '../keyboards.ts';
 import { TIMEZONES, tzLabel } from '../services/timezones.ts';
 import { resolveIntent } from '../services/ai.ts';
@@ -10,17 +11,17 @@ import { replyError, withTyping } from './_error.ts';
 async function showSettings(ctx: BotCtx, edit: boolean): Promise<void> {
   const T = t(ctx.lang).settings;
   const prefix = ctx.lang.toLowerCase().slice(0, 2);
-  const langLabel = prefix === 'ru'
-    ? T.language_ru
-    : prefix === 'en'
-      ? T.language_en
-      : ctx.lang;
+  const current = LANGUAGES.find((l) => l.id === prefix);
+  const langLabel = current ? `${current.flag} ${current.native}` : ctx.lang;
   const tzLabelStr = tzLabel(ctx.user.tz, ctx.lang);
   const text = `${T.title}\n\n${T.language}: ${langLabel}\n${T.timezone}: ${tzLabelStr}`;
-  const kb = new InlineKeyboard()
-    .text((prefix === 'ru' ? '✓ ' : '') + T.language_ru, 'settings:lang:ru')
-    .text((prefix === 'en' ? '✓ ' : '') + T.language_en, 'settings:lang:en').row()
-    .text(T.lang_custom, 'settings:lang_custom').row()
+  const kb = new InlineKeyboard();
+  LANGUAGES.forEach((lang, i) => {
+    const marker = lang.id === prefix ? '✓ ' : '';
+    kb.text(`${marker}${lang.flag} ${lang.native}`, `settings:lang:${lang.id}`);
+    if (i % 2 === 1) kb.row();
+  });
+  kb.row()
     .text(`⏰ ${T.timezone}`, 'settings:tz').row()
     .text(t(ctx.lang).common.back, 'menu:home');
   if (edit) {
@@ -32,6 +33,8 @@ async function showSettings(ctx: BotCtx, edit: boolean): Promise<void> {
   }
 }
 
+const LANG_CALLBACK = new RegExp(`^settings:lang:(${SUPPORTED_LANGS.join('|')})$`);
+
 export function registerSettings(bot: Bot<BotCtx>): void {
   bot.command('settings', (ctx) => showSettings(ctx, false));
 
@@ -40,8 +43,12 @@ export function registerSettings(bot: Bot<BotCtx>): void {
     await showSettings(ctx, true);
   });
 
-  bot.callbackQuery(/^settings:lang:(ru|en)$/, async (ctx) => {
-    const next = ctx.match[1] as 'ru' | 'en';
+  bot.callbackQuery(LANG_CALLBACK, async (ctx) => {
+    const next = ctx.match[1];
+    if (!isSupportedLang(next)) {
+      await ctx.answerCallbackQuery();
+      return;
+    }
     await refreshUser(ctx, { lang: next });
     await ctx.answerCallbackQuery({ text: t(ctx.lang).settings.lang_changed });
     await showSettings(ctx, true);
@@ -74,14 +81,6 @@ export function registerSettings(bot: Bot<BotCtx>): void {
       parse_mode: 'HTML',
     });
   });
-
-  bot.callbackQuery('settings:lang_custom', async (ctx) => {
-    await ctx.answerCallbackQuery();
-    ctx.session.mode = { type: 'settings:lang_custom' };
-    await ctx.editMessageText(t(ctx.lang).settings.lang_custom_prompt, {
-      parse_mode: 'HTML',
-    });
-  });
 }
 
 function isValidTz(tz: string): boolean {
@@ -90,47 +89,6 @@ function isValidTz(tz: string): boolean {
     return true;
   } catch {
     return false;
-  }
-}
-
-export async function handleLangCustom(ctx: BotCtx, text: string): Promise<boolean> {
-  if (ctx.session.mode?.type !== 'settings:lang_custom') return false;
-  const userId = ctx.from?.id;
-  if (!userId) return true;
-  try {
-    const intent = await withTyping(ctx, () =>
-      resolveIntent(`set my bot language to ${text}`, ctx.lang, userId)
-    );
-    if (intent?.action === 'set_language') {
-      ctx.session.mode = undefined;
-      await refreshUser(ctx, { lang: intent.lang });
-      const prefix = intent.lang.toLowerCase().slice(0, 2);
-      if (prefix === 'en' || prefix === 'ru') {
-        await ctx.reply(t(ctx.lang).settings.lang_changed);
-        await showSettings(ctx, false);
-        return true;
-      }
-      await ctx.reply(`🔄 Переключаюсь на ${intent.lang}… / Switching to ${intent.lang}…`);
-      const chatId = ctx.chat?.id;
-      queueMicrotask(async () => {
-        const ok = await translateAndCacheLabels(intent.lang);
-        if (!chatId) return;
-        const msg = ok
-          ? t(intent.lang).settings.lang_changed
-          : `Language set to ${intent.lang}. Try /settings again in a moment for translated menus.`;
-        await ctx.api.sendMessage(chatId, msg).catch(() => {});
-      });
-      return true;
-    }
-    const msg = ctx.lang.toLowerCase().startsWith('ru')
-      ? `Не понял язык из «${text}». Попробуй английское название (Spanish, German) или код (es, de).`
-      : `Couldn't resolve "${text}" to a language. Try an English name (Spanish, German) or code (es, de).`;
-    await ctx.reply(msg);
-    return true;
-  } catch (e) {
-    ctx.session.mode = undefined;
-    await replyError(ctx, e, `resolving language from "${text}"`);
-    return true;
   }
 }
 
@@ -165,4 +123,3 @@ export async function handleTzCustom(ctx: BotCtx, text: string): Promise<boolean
     return true;
   }
 }
-

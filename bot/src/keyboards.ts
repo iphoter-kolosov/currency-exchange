@@ -110,17 +110,3 @@ export function alertTypeMenu(lang: Lang, base: string, target: string): InlineK
     .text(C.cancel, 'menu:alerts');
 }
 
-export function settingsMenu(lang: Lang): InlineKeyboard {
-  const T = t(lang).settings;
-  const C = t(lang).common;
-  return new InlineKeyboard()
-    .text(
-      (lang === 'ru' ? '✓ ' : '') + T.language_ru,
-      'settings:lang:ru',
-    )
-    .text(
-      (lang === 'en' ? '✓ ' : '') + T.language_en,
-      'settings:lang:en',
-    ).row()
-    .text(C.back, 'menu:home');
-}

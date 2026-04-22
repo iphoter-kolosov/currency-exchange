@@ -1,6 +1,6 @@
 import { Bot, Context, GrammyError, HttpError, session, type SessionFlavor } from 'grammy';
 import { getUser, updateUser, type Lang, type UserPrefs } from './services/storage.ts';
-import { detectLang, ensureLabelsFromCache, t, tpl } from './i18n/index.ts';
+import { detectLang, isSupportedLang, t, tpl } from './i18n/index.ts';
 import { explainError } from './services/ai.ts';
 import { mainMenu } from './keyboards.ts';
 import { registerStart } from './handlers/start.ts';
@@ -23,7 +23,6 @@ export type SessionData = {
     | { type: 'digest:pair' }
     | { type: 'digest:time'; scope: 'pair' | 'watchlist'; base: string; target: string }
     | { type: 'settings:tz_custom' }
-    | { type: 'settings:lang_custom' }
     | { type: 'pending_compound'; summary: string; steps: unknown[] };
 };
 
@@ -70,8 +69,13 @@ export function createBot(token: string): Bot<BotCtx> {
     if (!uid) return next();
     const hint = detectLang(ctx.from?.language_code);
     ctx.user = await getUser(uid, hint);
+    // Legacy users may have unsupported codes saved (e.g. 'uk', 'de')
+    // from before the five-language lockdown. Reset them to English
+    // lazily so they see a working menu on their next message.
+    if (!isSupportedLang(ctx.user.lang)) {
+      ctx.user = await updateUser(uid, { lang: 'en' });
+    }
     ctx.lang = ctx.user.lang;
-    await ensureLabelsFromCache(ctx.user.lang);
     if (ctx.message?.text?.startsWith('/')) {
       ctx.session.mode = undefined;
     }

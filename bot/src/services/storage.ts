@@ -1,10 +1,9 @@
 import { DEFAULT_WATCHLIST } from '../data/currencies.ts';
 import { DEFAULT_TZ } from './timezones.ts';
 
-/** BCP-47 language tag: 'en', 'ru', 'de', 'uk-UA' and so on. Only 'en'
- * and 'ru' have full menu translations; other languages fall back to
- * English for UI strings while the LLM still replies in the chosen
- * language. */
+/** Two-letter language code (ISO 639-1). Only the five codes listed in
+ * SUPPORTED_LANGS have menu translations; anything else is reset to
+ * 'en' by the middleware. */
 export type Lang = string;
 
 export type UserPrefs = {
@@ -166,20 +165,3 @@ export async function resetUser(userId: number): Promise<void> {
   await k.delete(K_CONTEXT(userId));
 }
 
-export type UiLabelsEntry = {
-  version: string;
-  labels: Record<string, string>;
-};
-
-const K_UI = (lang: string) => ['ui', lang] as const;
-
-export async function getUiLabels(lang: string): Promise<UiLabelsEntry | null> {
-  const k = await getKv();
-  const entry = await k.get<UiLabelsEntry>(K_UI(lang));
-  return entry.value ?? null;
-}
-
-export async function saveUiLabels(lang: string, entry: UiLabelsEntry): Promise<void> {
-  const k = await getKv();
-  await k.set(K_UI(lang), entry);
-}
