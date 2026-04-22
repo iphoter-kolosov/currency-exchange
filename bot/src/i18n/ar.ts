@@ -20,6 +20,7 @@ export const ar: Dict = {
     loading: 'جاري التحميل…',
     error: '⚠️ حدث خطأ ما. حاول مرة أخرى.',
     unknown_currency: 'عملة غير معروفة: <b>{q}</b>',
+    llm_unavailable: 'لم أفهم — قد يكون النموذج بطيئًا. أعد الصياغة أو افتح الإعدادات.',
   },
   convert: {
     prompt: 'أرسل شيئًا مثل <b>100 usd eur</b> أو <b>1000 uah to rub</b>.',

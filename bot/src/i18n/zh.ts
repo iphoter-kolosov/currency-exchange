@@ -20,6 +20,7 @@ export const zh: Dict = {
     loading: '加载中…',
     error: '⚠️ 出错了，请再试一次。',
     unknown_currency: '未知货币：<b>{q}</b>',
+    llm_unavailable: '没理解 — 模型可能反应慢。换种说法，或打开设置。',
   },
   convert: {
     prompt: '发送类似 <b>100 usd eur</b> 或 <b>1000 uah to rub</b> 的内容。',

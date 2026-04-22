@@ -20,10 +20,11 @@ export type Intent =
 export type AtomicIntent = Exclude<Intent, { action: 'compound' }>;
 
 const POLLINATIONS_URL = 'https://text.pollinations.ai/';
-// Stay below Telegram's webhook timeout (~30s). 10s × 2 attempts + overhead
-// keeps us comfortably under the retry threshold so the same update never
-// gets re-delivered by Telegram.
-const REQUEST_TIMEOUT_MS = 10_000;
+// Stay below Telegram's webhook timeout (~30s). 8s × 3 attempts + backoff
+// (0.5s + 1.0s) ≈ 25.5s leaves a safety margin so the same update never
+// gets re-delivered by Telegram as a duplicate.
+const REQUEST_TIMEOUT_MS = 8_000;
+const MAX_ATTEMPTS = 3;
 
 const SUPPORTED_ISO =
   'USD EUR GBP JPY CHF CNY AUD CAD NZD SEK NOK DKK PLN CZK HUF RON BGN TRY UAH RUB BYN KZT GEL AMD AZN ILS AED SAR INR KRW SGD HKD THB VND MYR IDR PHP MXN BRL ARS CLP ZAR EGP NGN BTC ETH';
@@ -215,7 +216,7 @@ export async function resolveIntent(
   });
 
   return await withLlmSemaphore(async () => {
-    for (let attempt = 0; attempt < 2; attempt++) {
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
       try {
@@ -227,8 +228,8 @@ export async function resolveIntent(
         });
         if (!res.ok) {
           console.warn(`pollinations attempt ${attempt}: status ${res.status}`);
-          if ((res.status >= 500 || res.status === 429) && attempt === 0) {
-            await new Promise((r) => setTimeout(r, 800));
+          if ((res.status >= 500 || res.status === 429) && attempt < MAX_ATTEMPTS - 1) {
+            await new Promise((r) => setTimeout(r, 500 * Math.pow(2, attempt)));
             continue;
           }
           return null;
@@ -237,6 +238,8 @@ export async function resolveIntent(
         const parsed = extractJson(text);
         const intent = validateIntent(parsed);
         if (!intent) {
+          // Don't retry: LLM responded but format was wrong —
+          // another call is unlikely to change its mind.
           console.warn(`pollinations attempt ${attempt}: unparseable response`, text.slice(0, 200));
           return null;
         }
@@ -244,8 +247,8 @@ export async function resolveIntent(
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         console.warn(`pollinations attempt ${attempt}: ${msg}`);
-        if (attempt === 0) {
-          await new Promise((r) => setTimeout(r, 800));
+        if (attempt < MAX_ATTEMPTS - 1) {
+          await new Promise((r) => setTimeout(r, 500 * Math.pow(2, attempt)));
           continue;
         }
         return null;

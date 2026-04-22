@@ -19,24 +19,60 @@ import {
 import { findCurrency } from '../data/currencies.ts';
 import type { Timeframe } from '../services/dates.ts';
 import { tzLabel } from '../services/timezones.ts';
-import { isSupportedLang, t, tpl } from '../i18n/index.ts';
+import { isSupportedLang, type SupportedLang, t, tpl } from '../i18n/index.ts';
 import { LANGUAGES } from '../i18n/languages.ts';
 import { showAlertList } from './alerts.ts';
 import { askReset } from './start.ts';
+
+/** Keyword-based fast-path for language switching. Bypasses the LLM
+ * when the user's intent is obvious — works even if Pollinations is
+ * slow or down, and trims a 1-2s round-trip when it's not.
+ *
+ * We match on full language names (not 2-letter codes) because codes
+ * like 'en', 'ru', 'ar' collide with common substrings ("rub" → RUB
+ * currency, "entry", "arabica"). We also skip when the message
+ * contains a digit or an uppercase 3-letter token — those look like
+ * currency queries ("100 english pounds").
+ *
+ * Not a complete synonym table — the LLM still handles edge cases. */
+const LANG_PATTERNS: Array<[SupportedLang, RegExp]> = [
+  ['en', /\b(english|англи[йи]ск\w*|англ)\b/iu],
+  ['ru', /\b(russian|русск\w*|rus)\b|по[- ]русски/iu],
+  ['es', /\b(spanish|espa[nñ]ol|испанск\w*)\b/iu],
+  ['zh', /中文|中国话|汉语|漢語|普通话|\b(chinese|mandarin|китайск\w*)\b/iu],
+  ['ar', /العربية|عربي[ةه]?|\b(arabic|арабск\w*)\b/iu],
+];
+
+function detectLanguageSwitch(text: string): SupportedLang | null {
+  if (text.length > 50) return null;
+  if (/\d/.test(text)) return null;
+  if (/\b[A-Z]{3}\b/.test(text)) return null;
+  for (const [lang, re] of LANG_PATTERNS) {
+    if (re.test(text)) return lang;
+  }
+  return null;
+}
 
 async function handleAiFallback(ctx: BotCtx, text: string): Promise<boolean> {
   const userId = ctx.from?.id;
   if (!userId) return false;
   if (ctx.session.mode) return false;
 
+  const fastLang = detectLanguageSwitch(text);
+  if (fastLang) {
+    await refreshUser(ctx, { lang: fastLang });
+    await ctx.reply(t(ctx.lang).settings.lang_changed);
+    await appendContext(userId, text, `Language set to ${fastLang}`).catch(() => {});
+    return true;
+  }
+
   ctx.replyWithChatAction('typing').catch(() => {});
   const history = await getContext(userId).catch(() => []);
   const intent = await resolveIntent(text, ctx.lang, userId, history);
   if (!intent) {
-    const msg = ctx.lang.toLowerCase().startsWith('ru')
-      ? 'Не уловил мысль — связь с моделью пропала или запрос неоднозначный. Попробуй переформулировать или нажми /help.'
-      : "Didn't catch that — the model may be slow right now, or the request is ambiguous. Try rephrasing or tap /help.";
-    await ctx.reply(msg);
+    const T = t(ctx.lang);
+    const kb = new InlineKeyboard().text(T.start.menu_settings, 'menu:settings');
+    await ctx.reply(T.common.llm_unavailable, { reply_markup: kb });
     return true;
   }
   const trace = await runIntent(ctx, intent);
