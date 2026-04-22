@@ -1,5 +1,6 @@
 import { InlineKeyboard, type Bot } from 'grammy';
 import type { BotCtx } from '../bot.ts';
+import { cancelKb } from '../keyboards.ts';
 import { handleConvertText } from './convert.ts';
 import { handleWatchAdd, handleWatchBase, handleSingleCurrencyAsBase } from './watch.ts';
 import { handleChartPair, sendChart } from './chart.ts';
@@ -34,13 +35,16 @@ import { askReset } from './start.ts';
  * contains a digit or an uppercase 3-letter token — those look like
  * currency queries ("100 english pounds").
  *
- * Not a complete synonym table — the LLM still handles edge cases. */
+ * IMPORTANT: \b and \w in JS are ASCII-only, so "переключи на русский"
+ * used to slip through. We use Unicode lookaround (?<!\p{L}) and
+ * \p{L}* instead so cyrillic/latin/arabic words all get word-boundary
+ * semantics under the /u flag. */
 const LANG_PATTERNS: Array<[SupportedLang, RegExp]> = [
-  ['en', /\b(english|англи[йи]ск\w*|англ)\b/iu],
-  ['ru', /\b(russian|русск\w*|rus)\b|по[- ]русски/iu],
-  ['es', /\b(spanish|espa[nñ]ol|испанск\w*)\b/iu],
-  ['zh', /中文|中国话|汉语|漢語|普通话|\b(chinese|mandarin|китайск\w*)\b/iu],
-  ['ar', /العربية|عربي[ةه]?|\b(arabic|арабск\w*)\b/iu],
+  ['en', /(?<!\p{L})(english|англи[йи]ск\p{L}*|англ)(?!\p{L})/iu],
+  ['ru', /(?<!\p{L})(russian|русск\p{L}*|rus)(?!\p{L})|по[- ]русски/iu],
+  ['es', /(?<!\p{L})(spanish|espa[nñ]ol|испанск\p{L}*)(?!\p{L})/iu],
+  ['zh', /中文|中国话|汉语|漢語|普通话|(?<!\p{L})(chinese|mandarin|китайск\p{L}*)(?!\p{L})/iu],
+  ['ar', /العربية|عربي[ةه]?|(?<!\p{L})(arabic|арабск\p{L}*)(?!\p{L})/iu],
 ];
 
 function detectLanguageSwitch(text: string): SupportedLang | null {
@@ -53,21 +57,91 @@ function detectLanguageSwitch(text: string): SupportedLang | null {
   return null;
 }
 
+/** Command-level fast-path: short phrases that resolve to an existing
+ * flow but would otherwise hit the LLM and risk falling on its face.
+ * "Установи алерт" / "new alert" / "create chart" / "open settings"
+ * all route deterministically without a Pollinations round-trip. */
+type FastCommand = 'alert' | 'chart' | 'watchlist' | 'settings' | 'help';
+
+const COMMAND_PATTERNS: Array<[FastCommand, RegExp]> = [
+  ['alert', /(?<!\p{L})(alert\p{L}*|алерт\p{L}*|уведомлени\p{L}*|notifi\p{L}*)(?!\p{L})/iu],
+  ['chart', /(?<!\p{L})(chart\p{L}*|график\p{L}*|graph\p{L}*)(?!\p{L})/iu],
+  ['watchlist', /(?<!\p{L})(watchlist|watch\s*list|список\p{L}*)(?!\p{L})/iu],
+  ['settings', /(?<!\p{L})(settings?|настройк\p{L}*|ajustes|配置|الإعدادات)(?!\p{L})/iu],
+  ['help', /(?<!\p{L})(help|помощ\p{L}*|ayuda|帮助|مساعدة)(?!\p{L})/iu],
+];
+
+function detectCommandFastPath(text: string): FastCommand | null {
+  if (text.length > 40) return null;
+  if (/\d/.test(text)) return null;
+  // If any token parses as a currency, this is a richer query
+  // ("установи алерт eur huf") — let the LLM handle the full intent
+  // instead of dropping into a bare pick_pair prompt.
+  for (const tok of text.toLowerCase().split(/\s+/)) {
+    if (tok.length === 3 && findCurrency(tok)) return null;
+  }
+  for (const [cmd, re] of COMMAND_PATTERNS) {
+    if (re.test(text)) return cmd;
+  }
+  return null;
+}
+
 /** Runs at the top of the text pipeline, BEFORE any multi-step mode
- * handlers. A user stuck in e.g. chart:pair mode typing "Русский"
- * should be rescued immediately — without this early check, the text
- * would be swallowed by handleChartPair and re-prompt the user
- * indefinitely. Clears the mode if it was set. */
-async function tryLanguageFastPath(ctx: BotCtx, text: string): Promise<boolean> {
+ * handlers. A user stuck in e.g. chart:pair mode typing "Русский" or
+ * "Установи алерт" should be rescued immediately — without this early
+ * check, the text would be swallowed by the active mode handler (or
+ * hit the LLM and possibly fail). Clears the mode if it was set. */
+async function tryFastPath(ctx: BotCtx, text: string): Promise<boolean> {
   const userId = ctx.from?.id;
   if (!userId) return false;
+
   const fastLang = detectLanguageSwitch(text);
-  if (!fastLang) return false;
-  ctx.session.mode = undefined;
-  await refreshUser(ctx, { lang: fastLang });
-  await ctx.reply(t(ctx.lang).settings.lang_changed);
-  await appendContext(userId, text, `Language set to ${fastLang}`).catch(() => {});
-  return true;
+  if (fastLang) {
+    ctx.session.mode = undefined;
+    await refreshUser(ctx, { lang: fastLang });
+    await ctx.reply(t(ctx.lang).settings.lang_changed);
+    await appendContext(userId, text, `Language set to ${fastLang}`).catch(() => {});
+    return true;
+  }
+
+  const fastCmd = detectCommandFastPath(text);
+  if (fastCmd) {
+    ctx.session.mode = undefined;
+    const T = t(ctx.lang);
+    switch (fastCmd) {
+      case 'alert':
+        ctx.session.mode = { type: 'alerts:pair' };
+        await ctx.reply(T.alerts.pick_pair, {
+          parse_mode: 'HTML',
+          reply_markup: cancelKb(ctx.lang),
+        });
+        return true;
+      case 'chart':
+        ctx.session.mode = { type: 'chart:pair' };
+        await ctx.reply(T.chart.pick_pair, {
+          parse_mode: 'HTML',
+          reply_markup: cancelKb(ctx.lang),
+        });
+        return true;
+      case 'watchlist':
+        await handleSingleCurrencyAsBase(ctx, ctx.user.defaultBase);
+        return true;
+      case 'settings': {
+        const kb = new InlineKeyboard().text(T.start.menu_settings, 'menu:settings');
+        await ctx.reply(T.settings.title, { parse_mode: 'HTML', reply_markup: kb });
+        return true;
+      }
+      case 'help': {
+        const me = await ctx.api.getMe();
+        await ctx.reply(T.help.text.replaceAll('{username}', me.username ?? 'bot'), {
+          parse_mode: 'HTML',
+        });
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 async function handleAiFallback(ctx: BotCtx, text: string): Promise<boolean> {
@@ -287,7 +361,7 @@ export function registerText(bot: Bot<BotCtx>): void {
     const text = ctx.message.text;
     if (text.startsWith('/')) return;
 
-    if (await tryLanguageFastPath(ctx, text)) return;
+    if (await tryFastPath(ctx, text)) return;
 
     if (await handleWatchAdd(ctx, text)) return;
     if (await handleWatchBase(ctx, text)) return;
