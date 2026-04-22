@@ -99,7 +99,7 @@ export async function handleTzCustom(ctx: BotCtx, text: string): Promise<boolean
   if (!userId) return true;
   try {
     const intent = await withTyping(ctx, () =>
-      resolveIntent(`set my timezone to ${text}`, ctx.lang, userId)
+      resolveIntent(`set my timezone to ${text}`, ctx.lang, userId, ctx.user.tz)
     );
     if (intent?.action === 'set_timezone' && isValidTz(intent.tz)) {
       ctx.session.mode = undefined;

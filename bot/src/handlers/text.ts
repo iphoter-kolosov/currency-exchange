@@ -19,6 +19,9 @@ import {
 } from '../services/storage.ts';
 import { findCurrency } from '../data/currencies.ts';
 import type { Timeframe } from '../services/dates.ts';
+import { getRateForDate } from '../services/rates.ts';
+import { formatAmount, formatRate } from '../services/format.ts';
+import { withTyping } from './_error.ts';
 import { tzLabel } from '../services/timezones.ts';
 import { isSupportedLang, type SupportedLang, t, tpl } from '../i18n/index.ts';
 import { LANGUAGES } from '../i18n/languages.ts';
@@ -151,7 +154,7 @@ async function handleAiFallback(ctx: BotCtx, text: string): Promise<boolean> {
 
   ctx.replyWithChatAction('typing').catch(() => {});
   const history = await getContext(userId).catch(() => []);
-  const intent = await resolveIntent(text, ctx.lang, userId, history);
+  const intent = await resolveIntent(text, ctx.lang, userId, ctx.user.tz, history);
   if (!intent) {
     const T = t(ctx.lang);
     const kb = new InlineKeyboard().text(T.start.menu_settings, 'menu:settings');
@@ -174,6 +177,41 @@ async function runIntent(ctx: BotCtx, intent: Intent): Promise<string | null> {
       const synth = `${intent.from} ${intent.to}`;
       await handleConvertText(ctx, synth);
       return `Showed current rate ${intent.from.toUpperCase()}/${intent.to.toUpperCase()}`;
+    }
+    case 'historical_rate': {
+      const from = findCurrency(intent.from);
+      const to = findCurrency(intent.to);
+      if (!from || !to) return null;
+      try {
+        const payload = await withTyping(ctx, () => getRateForDate(from.code, intent.date));
+        const rate = to.code === from.code ? 1 : payload.rates[to.code];
+        if (typeof rate !== 'number') {
+          const msg = ctx.lang === 'ru'
+            ? `Нет данных по <b>${from.iso}/${to.iso}</b> на <code>${intent.date}</code>.`
+            : `No data for <b>${from.iso}/${to.iso}</b> on <code>${intent.date}</code>.`;
+          await ctx.reply(msg, { parse_mode: 'HTML' });
+          return null;
+        }
+        const C = t(ctx.lang).convert;
+        const msg = tpl(C.result, {
+          amount: formatAmount(1, from, ctx.lang),
+          from: from.iso,
+          value: formatAmount(rate, to, ctx.lang),
+          to: to.iso,
+          rate: formatRate(rate, ctx.lang),
+          date: payload.date,
+        });
+        await ctx.reply(msg, { parse_mode: 'HTML' });
+        return `Historical ${from.iso}/${to.iso} on ${payload.date}`;
+      } catch (e) {
+        const errMsg = e instanceof Error ? e.message : String(e);
+        console.warn('historical_rate failed', errMsg);
+        const msg = ctx.lang === 'ru'
+          ? `Не удалось получить курс <b>${from.iso}/${to.iso}</b> на <code>${intent.date}</code>. Попробуй другую дату.`
+          : `Couldn't fetch <b>${from.iso}/${to.iso}</b> on <code>${intent.date}</code>. Try a different date.`;
+        await ctx.reply(msg, { parse_mode: 'HTML' });
+        return null;
+      }
     }
     case 'watch': {
       const cur = findCurrency(intent.base);

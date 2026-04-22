@@ -5,6 +5,7 @@ import { withLlmSemaphore } from './queue.ts';
 export type Intent =
   | { action: 'convert'; amount: number; from: string; to: string }
   | { action: 'rate'; from: string; to: string }
+  | { action: 'historical_rate'; from: string; to: string; date: string }
   | { action: 'watch'; base: string }
   | { action: 'chart'; from: string; to: string; tf: string }
   | { action: 'daily_digest'; scope: 'pair' | 'watchlist'; from?: string; to?: string; hour: number; minute: number }
@@ -29,34 +30,51 @@ const MAX_ATTEMPTS = 3;
 const SUPPORTED_ISO =
   'USD EUR GBP JPY CHF CNY AUD CAD NZD SEK NOK DKK PLN CZK HUF RON BGN TRY UAH RUB BYN KZT GEL AMD AZN ILS AED SAR INR KRW SGD HKD THB VND MYR IDR PHP MXN BRL ARS CLP ZAR EGP NGN BTC ETH';
 
-const SYSTEM_PROMPT = (lang: Lang) =>
+function todayInTz(tz: string): string {
+  try {
+    const fmt = new Intl.DateTimeFormat('en-CA', {
+      timeZone: tz,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    return fmt.format(new Date());
+  } catch {
+    return new Date().toISOString().slice(0, 10);
+  }
+}
+
+const SYSTEM_PROMPT = (lang: Lang, tz: string) =>
   `You are a helpful currency exchange assistant inside a Telegram bot. The user writes in ${
     languageName(lang)
   } and may use slang, symbols, or vague phrasing.
+
+Today is ${todayInTz(tz)} in the user's timezone (${tz}).
 
 Reply with ONE JSON object — no markdown, no code fences, no commentary. Pick the best action:
 
 1. {"action":"convert","amount":<number>,"from":"<ISO>","to":"<ISO>"} — specific amount between two currencies.
 2. {"action":"rate","from":"<ISO>","to":"<ISO>"} — current rate only.
-3. {"action":"watch","base":"<ISO>"} — show a board of popular currencies against this base.
-4. {"action":"chart","from":"<ISO>","to":"<ISO>","tf":"1D"|"1W"|"1M"|"3M"|"6M"|"1Y"|"2Y"} — history chart. Default tf is 1M.
-5. {"action":"daily_digest","scope":"pair"|"watchlist","from":"<ISO>","to":"<ISO>","hour":<0-23>,"minute":<0-59>} — schedule a daily summary. Use scope="pair" with from/to when the user names a specific pair; use scope="watchlist" (omit from/to) when they ask for their whole list. Time is in the user's local hours/minutes.
+3. {"action":"historical_rate","from":"<ISO>","to":"<ISO>","date":"<YYYY-MM-DD>"} — rate on a SPECIFIC past date. Compute the date from today above. Examples: "курс eur huf за вчера" → yesterday's date; "сколько был доллар 15 марта" → current year, March 15; "EUR/USD on 2024-03-15" → 2024-03-15. Use ONLY when the user names a concrete date (relative or absolute). If they say "show the chart" or "over the last week", use "chart" instead.
+4. {"action":"watch","base":"<ISO>"} — show a board of popular currencies against this base.
+5. {"action":"chart","from":"<ISO>","to":"<ISO>","tf":"1D"|"1W"|"1M"|"3M"|"6M"|"1Y"|"2Y"} — history chart. Default tf is 1M.
+6. {"action":"daily_digest","scope":"pair"|"watchlist","from":"<ISO>","to":"<ISO>","hour":<0-23>,"minute":<0-59>} — schedule a daily summary. Use scope="pair" with from/to when the user names a specific pair; use scope="watchlist" (omit from/to) when they ask for their whole list. Time is in the user's local hours/minutes.
    HARD RULES for daily_digest:
    • NEVER invent the time. If the user did not mention a concrete hour (e.g. "в 9 утра", "at 18:30", "каждое утро в 7"), DO NOT return daily_digest — return "chat" asking which time they want.
    • If the user said scope "pair" but didn't name a currency pair, DO NOT guess — return "chat" asking which pair.
    • "каждый день" / "every day" / "каждое утро" alone are NOT enough to commit; still ask for the time.
    • "утро/morning" without a number is ambiguous — ask.
-6. {"action":"list_alerts"} — user wants to see their currently-active alerts and digests ("what alerts do I have?", "какие у меня алерты").
-7. {"action":"delete_alert","base":"<ISO>","target":"<ISO>","conditionType":"above"|"below"|"pct_up"|"pct_down"|"daily_digest","all":<bool>} — user wants to remove an alert. Include ONLY the fields they mentioned; omit the rest. If the user says "delete all" / "удали все" / "remove everything" / "снеси всё", set "all":true (and skip base/target/conditionType unless they also narrowed it). Examples: "delete EUR/HUF digest" → base=EUR,target=HUF,conditionType=daily_digest. "удали все алерты по евро" → base=EUR,all=true. "remove all my alerts" → all=true.
-8. {"action":"set_timezone","tz":"<IANA>"} — user wants to change time zone. Use full IANA names like 'Europe/Prague', 'America/Chicago', 'Asia/Seoul', 'Asia/Bangkok'. If the user names only a country, pick its capital or main financial city. If the city is ambiguous, pick the most likely.
-9. {"action":"set_language","lang":"<ISO 639-1 code>"} — user wants to switch bot language. Supported codes are EXACTLY these five: "en", "ru", "es", "zh", "ar". If the user asks for any other language, still return set_language with the code they asked for — the bot will tell them it isn't supported and list the five choices.
-10. {"action":"reset"} — user wants to wipe all their bot data and start over ("reset everything", "сбрось всё", "начать с нуля", "delete my account").
-11. {"action":"help"} — user asks what the bot can do, how to use it.
-12. {"action":"compound","summary":"<one-paragraph plain-language summary of the whole plan in the user's language>","steps":[<2 to 5 atomic intents>]} — the user asked for TWO OR MORE related actions in one message. Examples:
+7. {"action":"list_alerts"} — user wants to see their currently-active alerts and digests ("what alerts do I have?", "какие у меня алерты").
+8. {"action":"delete_alert","base":"<ISO>","target":"<ISO>","conditionType":"above"|"below"|"pct_up"|"pct_down"|"daily_digest","all":<bool>} — user wants to remove an alert. Include ONLY the fields they mentioned; omit the rest. If the user says "delete all" / "удали все" / "remove everything" / "снеси всё", set "all":true (and skip base/target/conditionType unless they also narrowed it). Examples: "delete EUR/HUF digest" → base=EUR,target=HUF,conditionType=daily_digest. "удали все алерты по евро" → base=EUR,all=true. "remove all my alerts" → all=true.
+9. {"action":"set_timezone","tz":"<IANA>"} — user wants to change time zone. Use full IANA names like 'Europe/Prague', 'America/Chicago', 'Asia/Seoul', 'Asia/Bangkok'. If the user names only a country, pick its capital or main financial city. If the city is ambiguous, pick the most likely.
+10. {"action":"set_language","lang":"<ISO 639-1 code>"} — user wants to switch bot language. Supported codes are EXACTLY these five: "en", "ru", "es", "zh", "ar". If the user asks for any other language, still return set_language with the code they asked for — the bot will tell them it isn't supported and list the five choices.
+11. {"action":"reset"} — user wants to wipe all their bot data and start over ("reset everything", "сбрось всё", "начать с нуля", "delete my account").
+12. {"action":"help"} — user asks what the bot can do, how to use it.
+13. {"action":"compound","summary":"<one-paragraph plain-language summary of the whole plan in the user's language>","steps":[<2 to 5 atomic intents>]} — the user asked for TWO OR MORE related actions in one message. Examples:
     • "Нужна сводка в 17:00 по Берлину в паре EUR/HUF" when user's current tz is NOT Europe/Berlin → steps = [set_timezone(Europe/Berlin), daily_digest(pair, EUR, HUF, 17, 0)].
     • "Switch to English and delete all my alerts" → steps = [set_language(en), delete_alert(all=true)].
     NEVER nest compound inside steps. NEVER use compound for a single action. The summary must plainly list what will happen so the user can confirm.
-13. {"action":"chat","reply":"<short message in ${
+14. {"action":"chat","reply":"<short message in ${
     languageName(lang)
   }>"} — greetings, off-topic, clarifications, smalltalk.
 
@@ -120,6 +138,19 @@ export function validateIntent(obj: unknown): Intent | null {
     case 'rate': {
       if (typeof o.from !== 'string' || typeof o.to !== 'string') return null;
       return { action: 'rate', from: o.from, to: o.to };
+    }
+    case 'historical_rate': {
+      if (typeof o.from !== 'string' || typeof o.to !== 'string') return null;
+      if (typeof o.date !== 'string') return null;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(o.date)) return null;
+      // Sanity: not in the future, not older than 5 years.
+      const now = new Date();
+      const asked = new Date(`${o.date}T00:00:00Z`);
+      if (Number.isNaN(asked.getTime())) return null;
+      if (asked.getTime() > now.getTime()) return null;
+      const fiveYearsMs = 5 * 365 * 24 * 60 * 60 * 1000;
+      if (now.getTime() - asked.getTime() > fiveYearsMs) return null;
+      return { action: 'historical_rate', from: o.from, to: o.to, date: o.date };
     }
     case 'watch': {
       if (typeof o.base !== 'string') return null;
@@ -198,6 +229,7 @@ export async function resolveIntent(
   userText: string,
   lang: Lang,
   userId: number,
+  tz: string,
   history: ChatTurn[] = [],
 ): Promise<Intent | null> {
   if (!checkRateLimit(userId)) {
@@ -207,7 +239,7 @@ export async function resolveIntent(
 
   const body = JSON.stringify({
     messages: [
-      { role: 'system', content: SYSTEM_PROMPT(lang) },
+      { role: 'system', content: SYSTEM_PROMPT(lang, tz) },
       ...history.map((h) => ({ role: h.role, content: h.content })),
       { role: 'user', content: userText.slice(0, 500) },
     ],
