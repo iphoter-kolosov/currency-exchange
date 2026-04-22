@@ -78,6 +78,8 @@ export const en = {
     timezone: 'Time zone',
     tz_changed: 'Time zone updated.',
     tz_prompt: 'Pick your time zone (used for daily digests):',
+    tz_custom: '✏️ Other city',
+    tz_custom_prompt: 'Send a city name (English works best): <b>Prague</b>, <b>Seoul</b>, <b>Tel Aviv</b>…',
     about: 'About',
   },
   digest: {

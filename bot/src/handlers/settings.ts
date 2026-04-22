@@ -4,6 +4,8 @@ import { refreshUser } from '../bot.ts';
 import { t } from '../i18n/index.ts';
 import { timezoneMenu } from '../keyboards.ts';
 import { TIMEZONES, tzLabel } from '../services/timezones.ts';
+import { resolveIntent } from '../services/ai.ts';
+import { replyError, withTyping } from './_error.ts';
 
 async function showSettings(ctx: BotCtx, edit: boolean): Promise<void> {
   const T = t(ctx.lang).settings;
@@ -58,5 +60,54 @@ export function registerSettings(bot: Bot<BotCtx>): void {
     await ctx.answerCallbackQuery({ text: t(ctx.lang).settings.tz_changed });
     await showSettings(ctx, true);
   });
+
+  bot.callbackQuery('tz:custom', async (ctx) => {
+    await ctx.answerCallbackQuery();
+    ctx.session.mode = { type: 'settings:tz_custom' };
+    await ctx.editMessageText(t(ctx.lang).settings.tz_custom_prompt, {
+      parse_mode: 'HTML',
+    });
+  });
+}
+
+function isValidTz(tz: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function handleTzCustom(ctx: BotCtx, text: string): Promise<boolean> {
+  if (ctx.session.mode?.type !== 'settings:tz_custom') return false;
+  const userId = ctx.from?.id;
+  if (!userId) return true;
+  try {
+    const intent = await withTyping(ctx, () =>
+      resolveIntent(`set my timezone to ${text}`, ctx.lang, userId)
+    );
+    if (intent?.action === 'set_timezone' && isValidTz(intent.tz)) {
+      ctx.session.mode = undefined;
+      await refreshUser(ctx, { tz: intent.tz });
+      const label = tzLabel(intent.tz, ctx.lang);
+      const pretty = label === intent.tz ? intent.tz : label;
+      const msg = ctx.lang === 'ru'
+        ? `⏰ Часовой пояс: <b>${pretty}</b>.`
+        : `⏰ Time zone set to <b>${pretty}</b>.`;
+      await ctx.reply(msg, { parse_mode: 'HTML' });
+      await showSettings(ctx, false);
+      return true;
+    }
+    const msg = ctx.lang === 'ru'
+      ? `Не получилось найти пояс для «${text}». Попробуй другое написание или выбери из списка — /settings.`
+      : `Couldn't resolve "${text}" to a time zone. Try a different spelling or pick from the list — /settings.`;
+    await ctx.reply(msg);
+    return true;
+  } catch (e) {
+    ctx.session.mode = undefined;
+    await replyError(ctx, e, `resolving time zone from "${text}"`);
+    return true;
+  }
 }
 

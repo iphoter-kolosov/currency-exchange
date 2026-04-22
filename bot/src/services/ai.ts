@@ -6,6 +6,11 @@ export type Intent =
   | { action: 'watch'; base: string }
   | { action: 'chart'; from: string; to: string; tf: string }
   | { action: 'daily_digest'; scope: 'pair' | 'watchlist'; from?: string; to?: string; hour: number; minute: number }
+  | { action: 'list_alerts' }
+  | { action: 'delete_alert'; base?: string; target?: string; conditionType?: string }
+  | { action: 'set_timezone'; tz: string }
+  | { action: 'set_language'; lang: 'en' | 'ru' }
+  | { action: 'help' }
   | { action: 'chat'; reply: string };
 
 const POLLINATIONS_URL = 'https://text.pollinations.ai/';
@@ -26,7 +31,12 @@ Reply with ONE JSON object — no markdown, no code fences, no commentary. Pick 
 3. {"action":"watch","base":"<ISO>"} — show a board of popular currencies against this base.
 4. {"action":"chart","from":"<ISO>","to":"<ISO>","tf":"1D"|"1W"|"1M"|"3M"|"6M"|"1Y"|"2Y"} — history chart. Default tf is 1M.
 5. {"action":"daily_digest","scope":"pair"|"watchlist","from":"<ISO>","to":"<ISO>","hour":<0-23>,"minute":<0-59>} — schedule a daily summary. Use scope="pair" with from/to when the user names a specific pair; use scope="watchlist" (omit from/to) when they ask for their whole list. Time is in the user's local hours/minutes.
-6. {"action":"chat","reply":"<short message in ${
+6. {"action":"list_alerts"} — user wants to see their currently-active alerts and digests ("what alerts do I have?", "какие у меня алерты").
+7. {"action":"delete_alert","base":"<ISO>","target":"<ISO>","conditionType":"above"|"below"|"pct_up"|"pct_down"|"daily_digest"} — user wants to remove an alert. Include ONLY the fields they mentioned; omit the rest. Example: "delete EUR/HUF digest" → base=EUR,target=HUF,conditionType=daily_digest. "удали все алерты по евро" → base=EUR (no target).
+8. {"action":"set_timezone","tz":"<IANA>"} — user wants to change time zone. Use full IANA names like 'Europe/Prague', 'America/Chicago', 'Asia/Seoul', 'Asia/Bangkok'. If the user names only a country, pick its capital or main financial city. If the city is ambiguous, pick the most likely.
+9. {"action":"set_language","lang":"en"|"ru"} — user wants to switch bot language.
+10. {"action":"help"} — user asks what the bot can do, how to use it.
+11. {"action":"chat","reply":"<short message in ${
     lang === 'ru' ? 'Russian' : 'English'
   }>"} — greetings, off-topic, clarifications, smalltalk.
 
@@ -118,6 +128,25 @@ function validateIntent(obj: unknown): Intent | null {
       }
       return { action: 'daily_digest', scope: 'watchlist', hour, minute };
     }
+    case 'list_alerts':
+      return { action: 'list_alerts' };
+    case 'delete_alert': {
+      const out: { action: 'delete_alert'; base?: string; target?: string; conditionType?: string } = { action: 'delete_alert' };
+      if (typeof o.base === 'string' && o.base.trim()) out.base = o.base;
+      if (typeof o.target === 'string' && o.target.trim()) out.target = o.target;
+      if (typeof o.conditionType === 'string' && o.conditionType.trim()) out.conditionType = o.conditionType;
+      return out;
+    }
+    case 'set_timezone': {
+      if (typeof o.tz !== 'string' || !o.tz.trim()) return null;
+      return { action: 'set_timezone', tz: o.tz };
+    }
+    case 'set_language': {
+      if (o.lang !== 'en' && o.lang !== 'ru') return null;
+      return { action: 'set_language', lang: o.lang };
+    }
+    case 'help':
+      return { action: 'help' };
     case 'chat': {
       if (typeof o.reply !== 'string' || !o.reply.trim()) return null;
       return { action: 'chat', reply: o.reply.slice(0, 600) };

@@ -50,7 +50,7 @@ function summaryLine(a: Alert, lang: 'ru' | 'en'): string {
   }
 }
 
-async function showAlertList(ctx: BotCtx, edit = false): Promise<void> {
+export async function showAlertList(ctx: BotCtx, edit = false): Promise<void> {
   if (!ctx.from) return;
   const T = t(ctx.lang).alerts;
   const alerts = await listAlerts(ctx.from.id);

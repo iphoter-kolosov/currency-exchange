@@ -80,6 +80,8 @@ export const ru: Dict = {
     timezone: 'Часовой пояс',
     tz_changed: 'Часовой пояс обновлён.',
     tz_prompt: 'Выбери свой часовой пояс (нужен для ежедневных сводок):',
+    tz_custom: '✏️ Другой город',
+    tz_custom_prompt: 'Пришли название города (английский работает надёжнее): <b>Prague</b>, <b>Tel Aviv</b>, <b>Seoul</b>…',
     about: 'О боте',
   },
   digest: {

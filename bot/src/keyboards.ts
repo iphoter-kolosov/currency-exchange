@@ -85,6 +85,7 @@ export function digestTimeMenu(lang: Lang, scope: 'pair' | 'watchlist', pair: st
 
 export function timezoneMenu(lang: Lang, current: string): InlineKeyboard {
   const C = t(lang).common;
+  const S = t(lang).settings;
   const kb = new InlineKeyboard();
   for (let i = 0; i < TIMEZONES.length; i += 2) {
     for (const tz of TIMEZONES.slice(i, i + 2)) {
@@ -93,6 +94,7 @@ export function timezoneMenu(lang: Lang, current: string): InlineKeyboard {
     }
     kb.row();
   }
+  kb.text(S.tz_custom, 'tz:custom').row();
   kb.text(C.back, 'menu:settings');
   return kb;
 }
