@@ -19,7 +19,7 @@ import {
 import { findCurrency } from '../data/currencies.ts';
 import type { Timeframe } from '../services/dates.ts';
 import { tzLabel } from '../services/timezones.ts';
-import { t, translateAndCacheLabels } from '../i18n/index.ts';
+import { t, tpl, translateAndCacheLabels } from '../i18n/index.ts';
 import { showAlertList } from './alerts.ts';
 import { askReset } from './start.ts';
 
@@ -100,8 +100,8 @@ async function runIntent(ctx: BotCtx, intent: Intent): Promise<string | null> {
       const time = `${pad(intent.hour)}:${pad(intent.minute)}`;
       const tz = tzLabel(ctx.user.tz, ctx.lang);
       const msg = intent.scope === 'pair'
-        ? D.created_pair(`${base.toUpperCase()}/${target.toUpperCase()}`, time, tz)
-        : D.created_watchlist(time, tz);
+        ? tpl(D.created_pair, { pair: `${base.toUpperCase()}/${target.toUpperCase()}`, time, tz })
+        : tpl(D.created_watchlist, { time, tz });
       await ctx.reply(msg, { parse_mode: 'HTML' });
       return intent.scope === 'pair'
         ? `Scheduled daily ${base.toUpperCase()}/${target.toUpperCase()} digest at ${time} ${tz}`

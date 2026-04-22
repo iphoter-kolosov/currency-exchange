@@ -125,6 +125,16 @@ export function languageName(lang: Lang): string {
   return LANG_NAMES[prefix] ?? lang;
 }
 
+/** Render a template string with {placeholder} tokens against a params
+ * object. Unknown tokens pass through unchanged so we notice missing
+ * fields instead of silently emitting 'undefined'. */
+export function tpl(template: string, params: Record<string, string | number>): string {
+  return template.replace(/\{(\w+)\}/g, (match, key: string) => {
+    const v = params[key];
+    return v === undefined ? match : String(v);
+  });
+}
+
 export function currencyName(c: Currency, lang: Lang): string {
   return normalizeLang(lang) === 'ru' ? c.name_ru : c.name_en;
 }

@@ -3,7 +3,7 @@ import type { BotCtx } from '../bot.ts';
 import { parseInput } from '../services/parser.ts';
 import { convert } from '../services/rates.ts';
 import { formatAmount, formatRate } from '../services/format.ts';
-import { t } from '../i18n/index.ts';
+import { t, tpl } from '../i18n/index.ts';
 import { replyError, withTyping } from './_error.ts';
 
 export function registerConvert(bot: Bot<BotCtx>): void {
@@ -34,14 +34,14 @@ export async function handleConvertText(ctx: BotCtx, raw: string): Promise<boole
   const amount = parsed.kind === 'convert' ? parsed.amount : 1;
   try {
     const result = await withTyping(ctx, () => convert(amount, parsed.from.code, parsed.to.code));
-    const msg = C.result(
-      formatAmount(amount, parsed.from, ctx.lang),
-      parsed.from.iso,
-      formatAmount(result.value, parsed.to, ctx.lang),
-      parsed.to.iso,
-      formatRate(result.rate, ctx.lang),
-      result.date,
-    );
+    const msg = tpl(C.result, {
+      amount: formatAmount(amount, parsed.from, ctx.lang),
+      from: parsed.from.iso,
+      value: formatAmount(result.value, parsed.to, ctx.lang),
+      to: parsed.to.iso,
+      rate: formatRate(result.rate, ctx.lang),
+      date: result.date,
+    });
     await ctx.reply(msg, { parse_mode: 'HTML' });
     return true;
   } catch (e) {

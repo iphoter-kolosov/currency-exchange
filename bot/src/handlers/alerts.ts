@@ -11,7 +11,7 @@ import {
 } from '../services/storage.ts';
 import { CURRENCY_BY_CODE, findCurrency } from '../data/currencies.ts';
 import { convert } from '../services/rates.ts';
-import { t } from '../i18n/index.ts';
+import { t, tpl } from '../i18n/index.ts';
 import { alertsMenu, alertTypeMenu, digestScopeMenu, digestTimeMenu } from '../keyboards.ts';
 import { tzLabel } from '../services/timezones.ts';
 import { formatRate } from '../services/format.ts';
@@ -33,7 +33,9 @@ function labelForAlert(a: Alert, lang: 'ru' | 'en'): string {
     case 'daily_digest': {
       const time = `${pad2(a.condition.hour)}:${pad2(a.condition.minute)}`;
       const D = t(lang).digest;
-      return a.condition.scope === 'pair' ? D.label_pair(pair, time) : D.label_watchlist(time);
+      return a.condition.scope === 'pair'
+        ? tpl(D.label_pair, { pair, time })
+        : tpl(D.label_watchlist, { time });
     }
   }
 }
@@ -88,7 +90,7 @@ export function registerAlerts(bot: Bot<BotCtx>): void {
     if (!ctx.from) return;
     const active = await countActiveAlerts(ctx.from.id);
     if (active >= FREE_ALERT_LIMIT) {
-      await ctx.reply(t(ctx.lang).alerts.limit_reached(FREE_ALERT_LIMIT));
+      await ctx.reply(tpl(t(ctx.lang).alerts.limit_reached, { limit: FREE_ALERT_LIMIT }));
       return;
     }
     ctx.session.mode = { type: 'alerts:pair' };
@@ -107,9 +109,11 @@ export function registerAlerts(bot: Bot<BotCtx>): void {
       : condType === 'pct_up' ? T.type_pct_up
       : T.type_pct_down;
     const hint = condType === 'above' || condType === 'below' ? T.hint_price : T.hint_percent;
-    await ctx.reply(T.enter_value(`${base.toUpperCase()}/${target.toUpperCase()}`, typeLabel, hint), {
-      parse_mode: 'HTML',
-    });
+    await ctx.reply(tpl(T.enter_value, {
+      pair: `${base.toUpperCase()}/${target.toUpperCase()}`,
+      type: typeLabel,
+      hint,
+    }), { parse_mode: 'HTML' });
   });
 
   bot.callbackQuery(/^alerts:del:(.+)$/, async (ctx) => {
@@ -125,7 +129,7 @@ export function registerAlerts(bot: Bot<BotCtx>): void {
     if (!ctx.from) return;
     const active = await countActiveAlerts(ctx.from.id);
     if (active >= FREE_ALERT_LIMIT) {
-      await ctx.reply(t(ctx.lang).alerts.limit_reached(FREE_ALERT_LIMIT));
+      await ctx.reply(tpl(t(ctx.lang).alerts.limit_reached, { limit: FREE_ALERT_LIMIT }));
       return;
     }
     const D = t(ctx.lang).digest;
@@ -146,7 +150,7 @@ export function registerAlerts(bot: Bot<BotCtx>): void {
     }
     ctx.session.mode = { type: 'digest:time', scope: 'watchlist', base: 'all', target: 'all' };
     await ctx.editMessageText(
-      `${D.pick_time(tzLabel(ctx.user.tz, ctx.lang))}\n<i>${D.pick_time_custom}</i>`,
+      `${tpl(D.pick_time, { tz: tzLabel(ctx.user.tz, ctx.lang) })}\n<i>${D.pick_time_custom}</i>`,
       { parse_mode: 'HTML', reply_markup: digestTimeMenu(ctx.lang, 'watchlist', 'all-all') },
     );
   });
@@ -188,8 +192,8 @@ async function finalizeDigest(
     const time = `${pad2(hour)}:${pad2(minute)}`;
     const tz = tzLabel(ctx.user.tz, ctx.lang);
     const msg = scope === 'pair'
-      ? D.created_pair(`${base.toUpperCase()}/${target.toUpperCase()}`, time, tz)
-      : D.created_watchlist(time, tz);
+      ? tpl(D.created_pair, { pair: `${base.toUpperCase()}/${target.toUpperCase()}`, time, tz })
+      : tpl(D.created_watchlist, { time, tz });
     await ctx.reply(msg, { parse_mode: 'HTML' });
     await showAlertList(ctx);
   } catch (e) {
@@ -209,7 +213,7 @@ export async function handleDigestPair(ctx: BotCtx, text: string): Promise<boole
     const base = findCurrency(parts[0]);
     const target = findCurrency(parts[1]);
     if (!base || !target) {
-      await ctx.reply(t(ctx.lang).common.unknown_currency(text), { parse_mode: 'HTML' });
+      await ctx.reply(tpl(t(ctx.lang).common.unknown_currency, { q: text }), { parse_mode: 'HTML' });
       return true;
     }
     ctx.session.mode = {
@@ -220,7 +224,7 @@ export async function handleDigestPair(ctx: BotCtx, text: string): Promise<boole
     };
     const D = t(ctx.lang).digest;
     await ctx.reply(
-      `${D.pick_time(tzLabel(ctx.user.tz, ctx.lang))}\n<i>${D.pick_time_custom}</i>`,
+      `${tpl(D.pick_time, { tz: tzLabel(ctx.user.tz, ctx.lang) })}\n<i>${D.pick_time_custom}</i>`,
       {
         parse_mode: 'HTML',
         reply_markup: digestTimeMenu(ctx.lang, 'pair', `${base.code}-${target.code}`),
@@ -267,7 +271,7 @@ export async function handleAlertsPair(ctx: BotCtx, text: string): Promise<boole
     const base = findCurrency(parts[0]);
     const target = findCurrency(parts[1]);
     if (!base || !target) {
-      await ctx.reply(t(ctx.lang).common.unknown_currency(text), { parse_mode: 'HTML' });
+      await ctx.reply(tpl(t(ctx.lang).common.unknown_currency, { q: text }), { parse_mode: 'HTML' });
       return true;
     }
     ctx.session.mode = undefined;
@@ -336,7 +340,7 @@ export async function handleAlertsValue(ctx: BotCtx, text: string): Promise<bool
     const nowLine = baseline
       ? `\n<i>${ctx.lang === 'ru' ? 'Сейчас' : 'Now'}: ${formatRate(baseline, ctx.lang)}</i>`
       : '';
-    await ctx.reply(`${t(ctx.lang).alerts.created(summary)}${nowLine}`, { parse_mode: 'HTML' });
+    await ctx.reply(`${tpl(t(ctx.lang).alerts.created, { summary })}${nowLine}`, { parse_mode: 'HTML' });
     await showAlertList(ctx);
     return true;
   } catch (e) {

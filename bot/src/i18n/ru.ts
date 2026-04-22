@@ -2,8 +2,8 @@ import type { Dict } from './en.ts';
 
 export const ru: Dict = {
   start: {
-    greeting: (name: string) =>
-      `Привет, ${name} 👋\n\nЯ — твой валютный ассистент: курсы в реальном времени, графики, алерты, ежедневные сводки.\n\n<b>Просто напиши — я пойму</b>\n• <code>100 usd eur</code> — конвертнуть\n• <code>eur</code> — курсы всех валют к евро\n• <code>график евро к доллару за год</code>\n• <code>каждый день в 9 утра евро к гривне</code>\n\nИли жми кнопку в меню 👇`,
+    greeting:
+      `Привет, {name} 👋\n\nЯ — твой валютный ассистент: курсы в реальном времени, графики, алерты, ежедневные сводки.\n\n<b>Просто напиши — я пойму</b>\n• <code>100 usd eur</code> — конвертнуть\n• <code>eur</code> — курсы всех валют к евро\n• <code>график евро к доллару за год</code>\n• <code>каждый день в 9 утра евро к гривне</code>\n\nИли жми кнопку в меню 👇`,
     menu_convert: '💱 Конвертер',
     menu_watch: '👁 Список',
     menu_chart: '📈 График',
@@ -19,30 +19,29 @@ export const ru: Dict = {
     add: '+ Добавить',
     loading: 'Загружаю…',
     error: '⚠️ Что-то пошло не так. Попробуй ещё раз.',
-    unknown_currency: (q: string) => `Не знаю такую валюту: <b>${q}</b>`,
+    unknown_currency: 'Не знаю такую валюту: <b>{q}</b>',
   },
   convert: {
     prompt: 'Напиши что-то вроде <b>100 usd eur</b> или <b>1000 uah в rub</b>.',
-    result: (amount: string, from: string, value: string, to: string, rate: string, date: string) =>
-      `<b>${amount} ${from}</b> = <b>${value} ${to}</b>\n\n<i>1 ${from} = ${rate} ${to}</i>\n<code>${date}</code>`,
+    result: '<b>{amount} {from}</b> = <b>{value} {to}</b>\n\n<i>1 {from} = {rate} {to}</i>\n<code>{date}</code>',
   },
   watchlist: {
     title: '👁 <b>Список</b>',
     empty: 'Пока пусто. Добавь валюты через меню.',
-    header: (base: string, amount: number) => `Курсы для <b>${amount} ${base}</b>:`,
+    header: 'Курсы для <b>{amount} {base}</b>:',
     add_prompt: 'Пришли код валюты для добавления (например <b>JPY</b> или <b>CHF</b>).',
-    added: (iso: string) => `<b>${iso}</b> добавлена в список.`,
-    removed: (iso: string) => `<b>${iso}</b> убрана из списка.`,
+    added: '<b>{iso}</b> добавлена в список.',
+    removed: '<b>{iso}</b> убрана из списка.',
     change_base: '🔁 Сменить базу',
     base_prompt: 'Пришли код базовой валюты (например <b>EUR</b>).',
-    base_changed: (iso: string) => `Базовая валюта теперь <b>${iso}</b>.`,
+    base_changed: 'Базовая валюта теперь <b>{iso}</b>.',
   },
   chart: {
-    title: (base: string, target: string, tf: string) => `📈 <b>${target} за 1 ${base}</b> · ${tf}`,
+    title: '📈 <b>{target} за 1 {base}</b> · {tf}',
     pick_pair: 'Напиши пару для графика (например <b>eur usd</b>).',
     pick_tf: 'Выбери период:',
     no_data: 'Нет данных для этой пары/периода.',
-    current: (price: string, pct: string) => `Сейчас: <b>${price}</b>  ${pct}`,
+    current: 'Сейчас: <b>{price}</b>  {pct}',
   },
   alerts: {
     list_title: '🔔 <b>Твои алерты</b>',
@@ -54,22 +53,16 @@ export const ru: Dict = {
     type_below: '📉 Цена ниже',
     type_pct_up: '⬆️ % роста за 24ч',
     type_pct_down: '⬇️ % падения за 24ч',
-    enter_value: (pair: string, type: string, hint: string) =>
-      `Пара: <b>${pair}</b>\nУсловие: <b>${type}</b>\n\nПришли значение (${hint}):`,
+    enter_value: 'Пара: <b>{pair}</b>\nУсловие: <b>{type}</b>\n\nПришли значение ({hint}):',
     hint_price: 'например 1.15',
     hint_percent: 'например 2 для 2%',
-    created: (summary: string) => `✅ Алерт создан:\n${summary}`,
+    created: '✅ Алерт создан:\n{summary}',
     deleted: '🗑 Алерт удалён.',
-    limit_reached: (limit: number) =>
-      `Бесплатный лимит — ${limit} активных алертов. /premium чтобы расширить.`,
-    notification_above: (pair: string, price: string, target: string) =>
-      `🔔 <b>${pair}</b> пробила <b>${target}</b> вверх\n\nТекущий курс: <b>${price}</b>`,
-    notification_below: (pair: string, price: string, target: string) =>
-      `🔔 <b>${pair}</b> упала ниже <b>${target}</b>\n\nТекущий курс: <b>${price}</b>`,
-    notification_pct_up: (pair: string, pct: string, price: string) =>
-      `🔔 <b>${pair}</b> выросла на ${pct} за 24ч\n\nТекущий курс: <b>${price}</b>`,
-    notification_pct_down: (pair: string, pct: string, price: string) =>
-      `🔔 <b>${pair}</b> упала на ${pct} за 24ч\n\nТекущий курс: <b>${price}</b>`,
+    limit_reached: 'Бесплатный лимит — {limit} активных алертов. /premium чтобы расширить.',
+    notification_above: '🔔 <b>{pair}</b> пробила <b>{target}</b> вверх\n\nТекущий курс: <b>{price}</b>',
+    notification_below: '🔔 <b>{pair}</b> упала ниже <b>{target}</b>\n\nТекущий курс: <b>{price}</b>',
+    notification_pct_up: '🔔 <b>{pair}</b> выросла на {pct} за 24ч\n\nТекущий курс: <b>{price}</b>',
+    notification_pct_down: '🔔 <b>{pair}</b> упала на {pct} за 24ч\n\nТекущий курс: <b>{price}</b>',
   },
   settings: {
     title: '⚙️ <b>Настройки</b>',
@@ -83,7 +76,7 @@ export const ru: Dict = {
     tz_custom: '✏️ Другой город',
     tz_custom_prompt: 'Пришли название города (английский работает надёжнее): <b>Prague</b>, <b>Tel Aviv</b>, <b>Seoul</b>…',
     lang_custom: '✏️ Другой язык',
-    lang_custom_prompt: 'Напиши название языка или код — <b>Spanish</b>, <b>Deutsch</b>, <b>uk</b>. Меню останется на английском, но бот будет отвечать на выбранном языке.',
+    lang_custom_prompt: 'Напиши название языка или код — <b>Spanish</b>, <b>Deutsch</b>, <b>uk</b>. Меню переведу на лету.',
     about: 'О боте',
   },
   digest: {
@@ -92,17 +85,14 @@ export const ru: Dict = {
     scope_watchlist: 'Весь список',
     pick_scope: 'Что присылать в сводке:',
     pick_pair: 'Пришли пару (например <b>eur usd</b>).',
-    pick_time: (tz: string) => `Время отправки (${tz}):`,
+    pick_time: 'Время отправки ({tz}):',
     pick_time_custom: 'Или пришли своё время, например <b>09:30</b>.',
-    created_pair: (pair: string, time: string, tz: string) =>
-      `✅ Сводка по <b>${pair}</b> будет приходить в <b>${time}</b> (${tz}).`,
-    created_watchlist: (time: string, tz: string) =>
-      `✅ Ежедневная сводка по списку — в <b>${time}</b> (${tz}).`,
-    label_pair: (pair: string, time: string) => `📅 ${pair} ежедневно @ ${time}`,
-    label_watchlist: (time: string) => `📅 список ежедневно @ ${time}`,
-    pair: (pair: string, price: string, change: string, prev: string) =>
-      `📅 <b>Сводка · ${pair}</b>\n\nСейчас: <b>${price}</b>  ${change}\nВчера: ${prev}`,
-    watchlist: (base: string) => `📅 <b>Сводка · 1 ${base}</b>`,
+    created_pair: '✅ Сводка по <b>{pair}</b> будет приходить в <b>{time}</b> ({tz}).',
+    created_watchlist: '✅ Ежедневная сводка по списку — в <b>{time}</b> ({tz}).',
+    label_pair: '📅 {pair} ежедневно @ {time}',
+    label_watchlist: '📅 список ежедневно @ {time}',
+    pair: '📅 <b>Сводка · {pair}</b>\n\nСейчас: <b>{price}</b>  {change}\nВчера: {prev}',
+    watchlist: '📅 <b>Сводка · 1 {base}</b>',
     time_invalid: 'Не разобрал время. Пришли в формате <b>09:00</b> или <b>21:30</b>.',
   },
   reset: {

@@ -3,7 +3,7 @@ import type { BotCtx } from '../bot.ts';
 import { getLatestRates } from '../services/rates.ts';
 import { CURRENCY_BY_CODE, findCurrency } from '../data/currencies.ts';
 import { formatMoney } from '../services/format.ts';
-import { t } from '../i18n/index.ts';
+import { t, tpl } from '../i18n/index.ts';
 import { refreshUser } from '../bot.ts';
 import { watchMenu, watchRemoveList } from '../keyboards.ts';
 import { replyError, withTyping } from './_error.ts';
@@ -24,7 +24,7 @@ async function buildWatchText(ctx: BotCtx): Promise<string> {
       if (typeof rate !== 'number') return `${cur.flag} ${cur.iso}: —`;
       return `${cur.flag} <b>${cur.iso}</b>: ${formatMoney(rate, cur, ctx.lang)}`;
     });
-  const header = W.header(baseCur.iso, 1);
+  const header = tpl(W.header, { base: baseCur.iso, amount: 1 });
   return [
     W.title,
     '',
@@ -105,7 +105,7 @@ export async function handleWatchAdd(ctx: BotCtx, text: string): Promise<boolean
   try {
     const cur = findCurrency(text);
     if (!cur) {
-      await ctx.reply(t(ctx.lang).common.unknown_currency(text), { parse_mode: 'HTML' });
+      await ctx.reply(tpl(t(ctx.lang).common.unknown_currency, { q: text }), { parse_mode: 'HTML' });
       return true;
     }
     const list = ctx.user.watchlist.includes(cur.code)
@@ -128,7 +128,7 @@ export async function handleWatchBase(ctx: BotCtx, text: string): Promise<boolea
   try {
     const cur = findCurrency(text);
     if (!cur) {
-      await ctx.reply(t(ctx.lang).common.unknown_currency(text), { parse_mode: 'HTML' });
+      await ctx.reply(tpl(t(ctx.lang).common.unknown_currency, { q: text }), { parse_mode: 'HTML' });
       return true;
     }
     const list = ctx.user.watchlist.includes(cur.code)

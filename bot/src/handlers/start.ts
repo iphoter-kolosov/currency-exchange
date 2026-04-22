@@ -1,7 +1,7 @@
 import { InlineKeyboard, type Bot } from 'grammy';
 import type { BotCtx } from '../bot.ts';
 import { refreshUser } from '../bot.ts';
-import { t } from '../i18n/index.ts';
+import { t, tpl } from '../i18n/index.ts';
 import { mainMenu } from '../keyboards.ts';
 import { resetUser } from '../services/storage.ts';
 
@@ -19,7 +19,7 @@ function onboardingKeyboard(): InlineKeyboard {
 async function showGreeting(ctx: BotCtx, edit = false): Promise<void> {
   const T = t(ctx.lang).start;
   const name = ctx.from?.first_name ?? (ctx.lang === 'ru' ? 'друг' : 'there');
-  const text = T.greeting(name);
+  const text = tpl(T.greeting, { name });
   const opts = { parse_mode: 'HTML' as const, reply_markup: mainMenu(ctx.lang) };
   if (edit) {
     await ctx.editMessageText(text, opts).catch(() => ctx.reply(text, opts));

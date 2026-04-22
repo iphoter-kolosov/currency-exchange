@@ -3,7 +3,7 @@ import type { BotCtx } from './bot.ts';
 import { iterateAllAlerts, updateAlert, getUser, type Alert, type UserPrefs } from './services/storage.ts';
 import { getLatestRates, getRateForDate } from './services/rates.ts';
 import { CURRENCY_BY_CODE } from './data/currencies.ts';
-import { t } from './i18n/index.ts';
+import { t, tpl } from './i18n/index.ts';
 import { formatRate, formatPercent } from './services/format.ts';
 import { localParts } from './services/timezones.ts';
 
@@ -107,16 +107,32 @@ async function sendPriceAlert(bot: Bot<BotCtx>, alert: Alert, rate: number): Pro
   let text: string;
   switch (alert.condition.type) {
     case 'above':
-      text = T.notification_above(pairStr, priceStr, String(alert.condition.value));
+      text = tpl(T.notification_above, {
+        pair: pairStr,
+        price: priceStr,
+        target: String(alert.condition.value),
+      });
       break;
     case 'below':
-      text = T.notification_below(pairStr, priceStr, String(alert.condition.value));
+      text = tpl(T.notification_below, {
+        pair: pairStr,
+        price: priceStr,
+        target: String(alert.condition.value),
+      });
       break;
     case 'pct_up':
-      text = T.notification_pct_up(pairStr, `+${alert.condition.value}%`, priceStr);
+      text = tpl(T.notification_pct_up, {
+        pair: pairStr,
+        pct: `+${alert.condition.value}%`,
+        price: priceStr,
+      });
       break;
     case 'pct_down':
-      text = T.notification_pct_down(pairStr, `−${alert.condition.value}%`, priceStr);
+      text = tpl(T.notification_pct_down, {
+        pair: pairStr,
+        pct: `−${alert.condition.value}%`,
+        price: priceStr,
+      });
       break;
     case 'daily_digest':
       return;
@@ -177,7 +193,7 @@ async function buildPairDigestText(alert: Alert, user: UserPrefs): Promise<strin
   const changeStr = change !== null ? formatPercent(change, user.lang) : '—';
   const prevStr = prev ? `${targetCur.symbol}${formatRate(prev, user.lang)}` : '—';
 
-  return D.pair(pair, priceStr, changeStr, prevStr);
+  return tpl(D.pair, { pair, price: priceStr, change: changeStr, prev: prevStr });
 }
 
 async function buildWatchlistDigestText(user: UserPrefs): Promise<string | null> {
@@ -203,5 +219,5 @@ async function buildWatchlistDigestText(user: UserPrefs): Promise<string | null>
     return `${cur.flag} <b>${cur.iso}</b>: ${nowStr}  ${formatPercent(pct, user.lang)}`;
   });
 
-  return `${D.watchlist(baseCur.iso)}\n\n${rows.join('\n')}`;
+  return `${tpl(D.watchlist, { base: baseCur.iso })}\n\n${rows.join('\n')}`;
 }

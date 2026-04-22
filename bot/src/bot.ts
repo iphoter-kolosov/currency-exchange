@@ -1,6 +1,6 @@
 import { Bot, Context, GrammyError, HttpError, session, type SessionFlavor } from 'grammy';
 import { getUser, updateUser, type Lang, type UserPrefs } from './services/storage.ts';
-import { detectLang, ensureLabelsFromCache, t } from './i18n/index.ts';
+import { detectLang, ensureLabelsFromCache, t, tpl } from './i18n/index.ts';
 import { explainError } from './services/ai.ts';
 import { mainMenu } from './keyboards.ts';
 import { registerStart } from './handlers/start.ts';
@@ -115,11 +115,12 @@ export function createBot(token: string): Bot<BotCtx> {
     await ctx.answerCallbackQuery();
     const T = t(ctx.lang).start;
     const name = ctx.from?.first_name ?? 'there';
-    await ctx.editMessageText(T.greeting(name), {
+    const greeting = tpl(T.greeting, { name });
+    await ctx.editMessageText(greeting, {
       parse_mode: 'HTML',
       reply_markup: mainMenu(ctx.lang),
     }).catch(async () => {
-      await ctx.reply(T.greeting(name), {
+      await ctx.reply(greeting, {
         parse_mode: 'HTML',
         reply_markup: mainMenu(ctx.lang),
       });

@@ -5,7 +5,7 @@ import { fetchSeries, buildChartUrl } from '../services/chart.ts';
 import { findCurrency, CURRENCY_BY_CODE } from '../data/currencies.ts';
 import type { Timeframe } from '../services/dates.ts';
 import { formatPercent, formatRate } from '../services/format.ts';
-import { t } from '../i18n/index.ts';
+import { t, tpl } from '../i18n/index.ts';
 import { timeframeKeyboard } from '../keyboards.ts';
 import { replyError, withTyping } from './_error.ts';
 
@@ -58,7 +58,7 @@ export async function handleChartPair(ctx: BotCtx, text: string): Promise<boolea
     const base = findCurrency(parts[0]);
     const target = findCurrency(parts[1]);
     if (!base || !target) {
-      await ctx.reply(t(ctx.lang).common.unknown_currency(text), { parse_mode: 'HTML' });
+      await ctx.reply(tpl(t(ctx.lang).common.unknown_currency, { q: text }), { parse_mode: 'HTML' });
       return true;
     }
     ctx.session.mode = undefined;
@@ -96,11 +96,11 @@ export async function sendChart(
     const pct = ((last - first) / first) * 100;
     const C = t(ctx.lang).chart;
     const caption = [
-      C.title(baseCur.iso, targetCur.iso, tf),
-      C.current(
-        `${targetCur.symbol}${formatRate(last, ctx.lang)}`,
-        formatPercent(pct, ctx.lang),
-      ),
+      tpl(C.title, { base: baseCur.iso, target: targetCur.iso, tf }),
+      tpl(C.current, {
+        price: `${targetCur.symbol}${formatRate(last, ctx.lang)}`,
+        pct: formatPercent(pct, ctx.lang),
+      }),
     ].join('\n\n');
 
     const url = buildChartUrl(series, base, target, tf);

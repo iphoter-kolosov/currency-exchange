@@ -1,78 +1,34 @@
 import { en, type Dict } from './en.ts';
 
-/** Dot-paths into Dict that hold plain string values (no template args).
- * Only these get translated on-demand by the LLM; everything else (the
- * parametric functions like start.greeting(name)) stays English so we
- * don't mangle placeholders. This covers every button label, section
- * title, confirmation toast, and dry status message the user ever
- * sees. */
-export const TRANSLATABLE_PATHS: string[] = [
-  'start.menu_convert',
-  'start.menu_watch',
-  'start.menu_chart',
-  'start.menu_alerts',
-  'start.menu_settings',
-  'start.menu_help',
-  'common.cancel',
-  'common.back',
-  'common.done',
-  'common.delete',
-  'common.add',
-  'common.loading',
-  'common.error',
-  'convert.prompt',
-  'watchlist.title',
-  'watchlist.empty',
-  'watchlist.add_prompt',
-  'watchlist.change_base',
-  'watchlist.base_prompt',
-  'chart.pick_pair',
-  'chart.pick_tf',
-  'chart.no_data',
-  'alerts.list_title',
-  'alerts.list_empty',
-  'alerts.new',
-  'alerts.pick_pair',
-  'alerts.pick_type',
-  'alerts.type_above',
-  'alerts.type_below',
-  'alerts.type_pct_up',
-  'alerts.type_pct_down',
-  'alerts.hint_price',
-  'alerts.hint_percent',
-  'alerts.deleted',
-  'settings.title',
-  'settings.language',
-  'settings.language_en',
-  'settings.language_ru',
-  'settings.lang_changed',
-  'settings.timezone',
-  'settings.tz_changed',
-  'settings.tz_prompt',
-  'settings.tz_custom',
-  'settings.tz_custom_prompt',
-  'settings.lang_custom',
-  'settings.lang_custom_prompt',
-  'settings.about',
-  'digest.menu_new',
-  'digest.scope_pair',
-  'digest.scope_watchlist',
-  'digest.pick_scope',
-  'digest.pick_pair',
-  'digest.pick_time_custom',
-  'digest.time_invalid',
-  'reset.prompt',
-  'reset.confirm',
-  'reset.cancel',
-  'reset.done',
-  'reset.done_toast',
-  'reset.cancelled',
-];
+/** Every string leaf in Dict is translatable — even the parametric
+ * templates like '{amount} {from} = {value} {to}', because placeholders
+ * in curly braces survive the LLM round-trip as long as the prompt
+ * tells the model to keep them literal. The list is generated from the
+ * English dict so it can never drift from the actual schema. */
+export function collectPaths(dict: Dict): string[] {
+  const out: string[] = [];
+  walk(dict as unknown as Record<string, unknown>, '', out);
+  return out;
+}
 
-/** A stable fingerprint of the English source text at the paths above.
- * If an upstream edit changes any of these strings, the hash changes
- * and every cached translation becomes invalid — the bot re-translates
- * on next use so users never see stale copy. */
+function walk(obj: Record<string, unknown>, prefix: string, out: string[]): void {
+  for (const key of Object.keys(obj)) {
+    const path = prefix ? `${prefix}.${key}` : key;
+    const val = obj[key];
+    if (typeof val === 'string') {
+      out.push(path);
+    } else if (val && typeof val === 'object') {
+      walk(val as Record<string, unknown>, path, out);
+    }
+  }
+}
+
+export const TRANSLATABLE_PATHS: string[] = collectPaths(en);
+
+/** Stable fingerprint of the English source at every translatable
+ * path. If an upstream edit changes any of these strings, the hash
+ * changes and every cached translation becomes invalid — the bot
+ * re-translates on next set_language for that lang. */
 export function sourceVersion(): string {
   const labels = extractLabels(en);
   const joined = TRANSLATABLE_PATHS.map((p) => `${p}=${labels[p] ?? ''}`).join('\n');
