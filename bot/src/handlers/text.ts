@@ -28,9 +28,16 @@ async function handleAiFallback(ctx: BotCtx, text: string): Promise<boolean> {
   if (!userId) return false;
   if (ctx.session.mode) return false;
 
+  ctx.replyWithChatAction('typing').catch(() => {});
   const history = await getContext(userId).catch(() => []);
   const intent = await resolveIntent(text, ctx.lang, userId, history);
-  if (!intent) return false;
+  if (!intent) {
+    const msg = ctx.lang === 'ru'
+      ? 'Не уловил мысль — связь с моделью пропала или запрос неоднозначный. Попробуй переформулировать или нажми /help.'
+      : "Didn't catch that — the model may be slow right now, or the request is ambiguous. Try rephrasing or tap /help.";
+    await ctx.reply(msg);
+    return true;
+  }
   const trace = await runIntent(ctx, intent);
   if (trace) await appendContext(userId, text, trace).catch(() => {});
   return true;

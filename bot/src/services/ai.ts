@@ -15,7 +15,7 @@ export type Intent =
   | { action: 'chat'; reply: string };
 
 const POLLINATIONS_URL = 'https://text.pollinations.ai/';
-const REQUEST_TIMEOUT_MS = 9000;
+const REQUEST_TIMEOUT_MS = 15_000;
 
 const SUPPORTED_ISO =
   'USD EUR GBP JPY CHF CNY AUD CAD NZD SEK NOK DKK PLN CZK HUF RON BGN TRY UAH RUB BYN KZT GEL AMD AZN ILS AED SAR INR KRW SGD HKD THB VND MYR IDR PHP MXN BRL ARS CLP ZAR EGP NGN BTC ETH';
@@ -172,39 +172,60 @@ export async function resolveIntent(
   userId: number,
   history: ChatTurn[] = [],
 ): Promise<Intent | null> {
-  if (!checkRateLimit(userId)) return null;
-
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
-
-  try {
-    const res = await fetch(POLLINATIONS_URL, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT(lang) },
-          ...history.map((h) => ({ role: h.role, content: h.content })),
-          { role: 'user', content: userText.slice(0, 500) },
-        ],
-        model: 'openai',
-        jsonMode: true,
-      }),
-      signal: ctrl.signal,
-    });
-    if (!res.ok) {
-      console.warn('pollinations status', res.status);
-      return null;
-    }
-    const body = await res.text();
-    const parsed = extractJson(body);
-    return validateIntent(parsed);
-  } catch (e) {
-    console.warn('pollinations failed', e instanceof Error ? e.message : e);
+  if (!checkRateLimit(userId)) {
+    console.warn('pollinations: rate limit for user', userId);
     return null;
-  } finally {
-    clearTimeout(timer);
   }
+
+  const body = JSON.stringify({
+    messages: [
+      { role: 'system', content: SYSTEM_PROMPT(lang) },
+      ...history.map((h) => ({ role: h.role, content: h.content })),
+      { role: 'user', content: userText.slice(0, 500) },
+    ],
+    model: 'openai',
+    jsonMode: true,
+  });
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
+    try {
+      const res = await fetch(POLLINATIONS_URL, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body,
+        signal: ctrl.signal,
+      });
+      if (!res.ok) {
+        console.warn(`pollinations attempt ${attempt}: status ${res.status}`);
+        if (res.status >= 500 && attempt === 0) {
+          await new Promise((r) => setTimeout(r, 600));
+          continue;
+        }
+        return null;
+      }
+      const text = await res.text();
+      const parsed = extractJson(text);
+      const intent = validateIntent(parsed);
+      if (!intent) {
+        console.warn(`pollinations attempt ${attempt}: unparseable response`, text.slice(0, 200));
+        return null;
+      }
+      return intent;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.warn(`pollinations attempt ${attempt}: ${msg}`);
+      if (attempt === 0) {
+        await new Promise((r) => setTimeout(r, 600));
+        continue;
+      }
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  return null;
 }
 
 const ERROR_PROMPT = (lang: Lang) =>
