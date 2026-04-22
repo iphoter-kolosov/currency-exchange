@@ -111,7 +111,6 @@ export async function handleWatchAdd(ctx: BotCtx, text: string): Promise<boolean
     : [...ctx.user.watchlist, cur.code];
   await refreshUser(ctx, { watchlist: list });
   ctx.session.mode = undefined;
-  await ctx.reply(t(ctx.lang).watchlist.added(cur.iso), { parse_mode: 'HTML' });
   const str = await buildWatchText(ctx);
   await ctx.reply(str, { parse_mode: 'HTML', reply_markup: watchMenu(ctx.lang) });
   return true;
@@ -129,7 +128,22 @@ export async function handleWatchBase(ctx: BotCtx, text: string): Promise<boolea
     : [cur.code, ...ctx.user.watchlist];
   await refreshUser(ctx, { defaultBase: cur.code, watchlist: list });
   ctx.session.mode = undefined;
-  await ctx.reply(t(ctx.lang).watchlist.base_changed(cur.iso), { parse_mode: 'HTML' });
+  const str = await buildWatchText(ctx);
+  await ctx.reply(str, { parse_mode: 'HTML', reply_markup: watchMenu(ctx.lang) });
+  return true;
+}
+
+export async function handleSingleCurrencyAsBase(ctx: BotCtx, text: string): Promise<boolean> {
+  if (ctx.session.mode) return false;
+  const trimmed = text.trim();
+  if (!trimmed || /\s/.test(trimmed)) return false;
+  const cur = findCurrency(trimmed);
+  if (!cur) return false;
+
+  const list = ctx.user.watchlist.includes(cur.code)
+    ? ctx.user.watchlist
+    : [cur.code, ...ctx.user.watchlist];
+  await refreshUser(ctx, { defaultBase: cur.code, watchlist: list });
   const str = await buildWatchText(ctx);
   await ctx.reply(str, { parse_mode: 'HTML', reply_markup: watchMenu(ctx.lang) });
   return true;

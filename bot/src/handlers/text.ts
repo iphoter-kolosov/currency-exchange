@@ -1,7 +1,7 @@
 import type { Bot } from 'grammy';
 import type { BotCtx } from '../bot.ts';
 import { handleConvertText } from './convert.ts';
-import { handleWatchAdd, handleWatchBase } from './watch.ts';
+import { handleWatchAdd, handleWatchBase, handleSingleCurrencyAsBase } from './watch.ts';
 import { handleChartPair } from './chart.ts';
 import { handleAlertsPair, handleAlertsValue } from './alerts.ts';
 
@@ -17,5 +17,6 @@ export function registerText(bot: Bot<BotCtx>): void {
     if (await handleAlertsValue(ctx, text)) return;
 
     if (await handleConvertText(ctx, text)) return;
+    if (await handleSingleCurrencyAsBase(ctx, text)) return;
   });
 }
