@@ -152,3 +152,12 @@ export async function clearContext(userId: number): Promise<void> {
   const k = await getKv();
   await k.delete(K_CONTEXT(userId));
 }
+
+export async function resetUser(userId: number): Promise<void> {
+  const k = await getKv();
+  for await (const entry of k.list<Alert>({ prefix: K_ALERTS_BY_USER(userId) })) {
+    await k.delete(entry.key);
+  }
+  await k.delete(K_USER(userId));
+  await k.delete(K_CONTEXT(userId));
+}

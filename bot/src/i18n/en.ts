@@ -101,6 +101,14 @@ export const en = {
     watchlist: (base: string) => `📅 <b>Daily digest · 1 ${base}</b>`,
     time_invalid: 'Couldn\'t read the time. Send something like <b>09:00</b> or <b>21:30</b>.',
   },
+  reset: {
+    prompt: '⚠️ This will wipe everything: your language, time zone, watchlist, and all alerts. Continue?',
+    confirm: '🗑 Yes, reset',
+    cancel: 'Cancel',
+    done: '✅ Everything cleared. Pick a language to start fresh.',
+    done_toast: 'Reset done',
+    cancelled: 'Cancelled — nothing changed.',
+  },
   help: {
     text: `<b>What I can do</b>
 

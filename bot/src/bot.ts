@@ -109,6 +109,7 @@ export async function setBotCommands(bot: Bot<BotCtx>): Promise<void> {
     { command: 'alerts', description: 'Manage alerts' },
     { command: 'settings', description: 'Language & preferences' },
     { command: 'help', description: 'How to use' },
+    { command: 'reset', description: 'Wipe all data and start over' },
   ], { language_code: 'en' });
 
   await bot.api.setMyCommands([
@@ -119,6 +120,7 @@ export async function setBotCommands(bot: Bot<BotCtx>): Promise<void> {
     { command: 'alerts', description: 'Алерты' },
     { command: 'settings', description: 'Язык и настройки' },
     { command: 'help', description: 'Как пользоваться' },
+    { command: 'reset', description: 'Сбросить все данные' },
   ], { language_code: 'ru' });
 }
 

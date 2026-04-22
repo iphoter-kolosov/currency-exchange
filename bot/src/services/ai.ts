@@ -7,9 +7,10 @@ export type Intent =
   | { action: 'chart'; from: string; to: string; tf: string }
   | { action: 'daily_digest'; scope: 'pair' | 'watchlist'; from?: string; to?: string; hour: number; minute: number }
   | { action: 'list_alerts' }
-  | { action: 'delete_alert'; base?: string; target?: string; conditionType?: string }
+  | { action: 'delete_alert'; base?: string; target?: string; conditionType?: string; all?: boolean }
   | { action: 'set_timezone'; tz: string }
   | { action: 'set_language'; lang: 'en' | 'ru' }
+  | { action: 'reset' }
   | { action: 'help' }
   | { action: 'chat'; reply: string };
 
@@ -32,11 +33,12 @@ Reply with ONE JSON object — no markdown, no code fences, no commentary. Pick 
 4. {"action":"chart","from":"<ISO>","to":"<ISO>","tf":"1D"|"1W"|"1M"|"3M"|"6M"|"1Y"|"2Y"} — history chart. Default tf is 1M.
 5. {"action":"daily_digest","scope":"pair"|"watchlist","from":"<ISO>","to":"<ISO>","hour":<0-23>,"minute":<0-59>} — schedule a daily summary. Use scope="pair" with from/to when the user names a specific pair; use scope="watchlist" (omit from/to) when they ask for their whole list. Time is in the user's local hours/minutes.
 6. {"action":"list_alerts"} — user wants to see their currently-active alerts and digests ("what alerts do I have?", "какие у меня алерты").
-7. {"action":"delete_alert","base":"<ISO>","target":"<ISO>","conditionType":"above"|"below"|"pct_up"|"pct_down"|"daily_digest"} — user wants to remove an alert. Include ONLY the fields they mentioned; omit the rest. Example: "delete EUR/HUF digest" → base=EUR,target=HUF,conditionType=daily_digest. "удали все алерты по евро" → base=EUR (no target).
+7. {"action":"delete_alert","base":"<ISO>","target":"<ISO>","conditionType":"above"|"below"|"pct_up"|"pct_down"|"daily_digest","all":<bool>} — user wants to remove an alert. Include ONLY the fields they mentioned; omit the rest. If the user says "delete all" / "удали все" / "remove everything" / "снеси всё", set "all":true (and skip base/target/conditionType unless they also narrowed it). Examples: "delete EUR/HUF digest" → base=EUR,target=HUF,conditionType=daily_digest. "удали все алерты по евро" → base=EUR,all=true. "remove all my alerts" → all=true.
 8. {"action":"set_timezone","tz":"<IANA>"} — user wants to change time zone. Use full IANA names like 'Europe/Prague', 'America/Chicago', 'Asia/Seoul', 'Asia/Bangkok'. If the user names only a country, pick its capital or main financial city. If the city is ambiguous, pick the most likely.
 9. {"action":"set_language","lang":"en"|"ru"} — user wants to switch bot language.
-10. {"action":"help"} — user asks what the bot can do, how to use it.
-11. {"action":"chat","reply":"<short message in ${
+10. {"action":"reset"} — user wants to wipe all their bot data and start over ("reset everything", "сбрось всё", "начать с нуля", "delete my account").
+11. {"action":"help"} — user asks what the bot can do, how to use it.
+12. {"action":"chat","reply":"<short message in ${
     lang === 'ru' ? 'Russian' : 'English'
   }>"} — greetings, off-topic, clarifications, smalltalk.
 
@@ -131,12 +133,15 @@ function validateIntent(obj: unknown): Intent | null {
     case 'list_alerts':
       return { action: 'list_alerts' };
     case 'delete_alert': {
-      const out: { action: 'delete_alert'; base?: string; target?: string; conditionType?: string } = { action: 'delete_alert' };
+      const out: { action: 'delete_alert'; base?: string; target?: string; conditionType?: string; all?: boolean } = { action: 'delete_alert' };
       if (typeof o.base === 'string' && o.base.trim()) out.base = o.base;
       if (typeof o.target === 'string' && o.target.trim()) out.target = o.target;
       if (typeof o.conditionType === 'string' && o.conditionType.trim()) out.conditionType = o.conditionType;
+      if (o.all === true) out.all = true;
       return out;
     }
+    case 'reset':
+      return { action: 'reset' };
     case 'set_timezone': {
       if (typeof o.tz !== 'string' || !o.tz.trim()) return null;
       return { action: 'set_timezone', tz: o.tz };

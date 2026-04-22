@@ -21,6 +21,7 @@ import type { Timeframe } from '../services/dates.ts';
 import { tzLabel } from '../services/timezones.ts';
 import { t } from '../i18n/index.ts';
 import { showAlertList } from './alerts.ts';
+import { askReset } from './start.ts';
 
 async function handleAiFallback(ctx: BotCtx, text: string): Promise<boolean> {
   const userId = ctx.from?.id;
@@ -135,6 +136,10 @@ async function runIntent(ctx: BotCtx, intent: Intent): Promise<string | null> {
       });
       return 'Showed help';
     }
+    case 'reset': {
+      await askReset(ctx);
+      return 'Asked for reset confirmation';
+    }
     case 'chat': {
       await ctx.reply(intent.reply, { parse_mode: 'HTML' }).catch(() =>
         ctx.reply(intent.reply)
@@ -163,6 +168,7 @@ async function runDeleteAlert(
   const base = intent.base?.toLowerCase();
   const target = intent.target?.toLowerCase();
   const ct = intent.conditionType;
+  const all = intent.all === true;
 
   const matches = active.filter((a) => {
     if (base && a.base !== base && !(a.condition.type === 'daily_digest' && a.condition.scope === 'watchlist')) return false;
@@ -178,10 +184,12 @@ async function runDeleteAlert(
     await ctx.reply(msg);
     return null;
   }
-  if (matches.length > 1 && (!base || !target) && !ct) {
+  // Ask to narrow only if there are several matches AND the user did not say "all"
+  // AND did not narrow by either pair or condition type.
+  if (matches.length > 1 && !all && !base && !target && !ct) {
     const msg = ctx.lang === 'ru'
-      ? `Нашёл ${matches.length} подходящих алертов. Уточни пару или тип — например «удали сводку по EUR/HUF».`
-      : `Found ${matches.length} matching alerts. Be more specific — e.g. "delete EUR/HUF digest".`;
+      ? `Нашёл ${matches.length} алертов. Если хочешь удалить все — напиши «удали все», иначе уточни пару или тип.`
+      : `Found ${matches.length} alerts. Say "delete all" to remove them all, or narrow by pair / type.`;
     await ctx.reply(msg);
     await showAlertList(ctx);
     return null;

@@ -3,6 +3,7 @@ import type { BotCtx } from '../bot.ts';
 import { refreshUser } from '../bot.ts';
 import { t } from '../i18n/index.ts';
 import { mainMenu } from '../keyboards.ts';
+import { resetUser } from '../services/storage.ts';
 
 const ONBOARDING_TEXT =
   '👋 <b>Welcome!</b> · <b>Добро пожаловать!</b>\n\n' +
@@ -63,4 +64,38 @@ export function registerStart(bot: Bot<BotCtx>): void {
       reply_markup: { inline_keyboard: [[{ text: t(ctx.lang).common.back, callback_data: 'menu:home' }]] },
     });
   });
+
+  bot.command('reset', (ctx) => askReset(ctx));
+
+  bot.callbackQuery('reset:confirm', async (ctx) => {
+    if (!ctx.from) {
+      await ctx.answerCallbackQuery();
+      return;
+    }
+    await resetUser(ctx.from.id);
+    ctx.session.mode = undefined;
+    await ctx.answerCallbackQuery({ text: t(ctx.lang).reset.done_toast });
+    await ctx.editMessageText(t(ctx.lang).reset.done, { parse_mode: 'HTML' }).catch(() =>
+      ctx.reply(t(ctx.lang).reset.done, { parse_mode: 'HTML' })
+    );
+    await ctx.reply(ONBOARDING_TEXT, {
+      parse_mode: 'HTML',
+      reply_markup: onboardingKeyboard(),
+    });
+  });
+
+  bot.callbackQuery('reset:cancel', async (ctx) => {
+    await ctx.answerCallbackQuery();
+    await ctx.editMessageText(t(ctx.lang).reset.cancelled).catch(() =>
+      ctx.reply(t(ctx.lang).reset.cancelled)
+    );
+  });
+}
+
+export async function askReset(ctx: BotCtx): Promise<void> {
+  const R = t(ctx.lang).reset;
+  const kb = new InlineKeyboard()
+    .text(R.confirm, 'reset:confirm')
+    .text(R.cancel, 'reset:cancel');
+  await ctx.reply(R.prompt, { parse_mode: 'HTML', reply_markup: kb });
 }
