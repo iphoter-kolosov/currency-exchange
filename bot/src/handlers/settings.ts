@@ -105,11 +105,21 @@ export async function handleLangCustom(ctx: BotCtx, text: string): Promise<boole
       ctx.session.mode = undefined;
       await refreshUser(ctx, { lang: intent.lang });
       const prefix = intent.lang.toLowerCase().slice(0, 2);
-      if (prefix !== 'en' && prefix !== 'ru') {
-        await withTyping(ctx, () => translateAndCacheLabels(intent.lang));
+      if (prefix === 'en' || prefix === 'ru') {
+        await ctx.reply(t(ctx.lang).settings.lang_changed);
+        await showSettings(ctx, false);
+        return true;
       }
-      await ctx.reply(t(ctx.lang).settings.lang_changed);
-      await showSettings(ctx, false);
+      await ctx.reply(`🔄 Переключаюсь на ${intent.lang}… / Switching to ${intent.lang}…`);
+      const chatId = ctx.chat?.id;
+      queueMicrotask(async () => {
+        const ok = await translateAndCacheLabels(intent.lang);
+        if (!chatId) return;
+        const msg = ok
+          ? t(intent.lang).settings.lang_changed
+          : `Language set to ${intent.lang}. Try /settings again in a moment for translated menus.`;
+        await ctx.api.sendMessage(chatId, msg).catch(() => {});
+      });
       return true;
     }
     const msg = ctx.lang.toLowerCase().startsWith('ru')

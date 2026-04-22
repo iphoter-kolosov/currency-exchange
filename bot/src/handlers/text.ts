@@ -19,7 +19,6 @@ import {
 import { findCurrency } from '../data/currencies.ts';
 import type { Timeframe } from '../services/dates.ts';
 import { tzLabel } from '../services/timezones.ts';
-import { withUserLock } from '../services/queue.ts';
 import { t, translateAndCacheLabels } from '../i18n/index.ts';
 import { showAlertList } from './alerts.ts';
 import { askReset } from './start.ts';
@@ -29,24 +28,19 @@ async function handleAiFallback(ctx: BotCtx, text: string): Promise<boolean> {
   if (!userId) return false;
   if (ctx.session.mode) return false;
 
-  // Serialize per user so a burst of messages is processed one by one —
-  // each reply arrives in the same order the user sent them, and the
-  // context built by appendContext reflects the true chronology.
-  return await withUserLock(userId, async () => {
-    ctx.replyWithChatAction('typing').catch(() => {});
-    const history = await getContext(userId).catch(() => []);
-    const intent = await resolveIntent(text, ctx.lang, userId, history);
-    if (!intent) {
-      const msg = ctx.lang === 'ru'
-        ? 'Не уловил мысль — связь с моделью пропала или запрос неоднозначный. Попробуй переформулировать или нажми /help.'
-        : "Didn't catch that — the model may be slow right now, or the request is ambiguous. Try rephrasing or tap /help.";
-      await ctx.reply(msg);
-      return true;
-    }
-    const trace = await runIntent(ctx, intent);
-    if (trace) await appendContext(userId, text, trace).catch(() => {});
+  ctx.replyWithChatAction('typing').catch(() => {});
+  const history = await getContext(userId).catch(() => []);
+  const intent = await resolveIntent(text, ctx.lang, userId, history);
+  if (!intent) {
+    const msg = ctx.lang.toLowerCase().startsWith('ru')
+      ? 'Не уловил мысль — связь с моделью пропала или запрос неоднозначный. Попробуй переформулировать или нажми /help.'
+      : "Didn't catch that — the model may be slow right now, or the request is ambiguous. Try rephrasing or tap /help.";
+    await ctx.reply(msg);
     return true;
-  });
+  }
+  const trace = await runIntent(ctx, intent);
+  if (trace) await appendContext(userId, text, trace).catch(() => {});
+  return true;
 }
 
 async function runIntent(ctx: BotCtx, intent: Intent): Promise<string | null> {
@@ -142,15 +136,21 @@ async function runIntent(ctx: BotCtx, intent: Intent): Promise<string | null> {
       if (prefix === 'en' || prefix === 'ru') {
         await ctx.reply(t(ctx.lang).settings.lang_changed);
       } else {
-        ctx.replyWithChatAction('typing').catch(() => {});
-        const ok = await translateAndCacheLabels(intent.lang);
-        await ctx.reply(t(ctx.lang).settings.lang_changed);
-        if (!ok) {
-          const fallbackNote = ctx.lang.toLowerCase().startsWith('ru')
-            ? 'Перевод меню пока не готов — покажу на английском. Попробуй ещё раз позже.'
-            : 'Menu translation not ready — buttons stay in English for now. Try again in a moment.';
-          await ctx.reply(fallbackNote);
-        }
+        // Reply right away so the webhook handler returns in < 1s.
+        // Fire translation in the background — when it finishes we
+        // send a second confirmation in the user's language.
+        const starting = `🔄 Переключаюсь на ${intent.lang}… / Switching to ${intent.lang}…`;
+        await ctx.reply(starting);
+        const chatId = ctx.chat?.id;
+        queueMicrotask(async () => {
+          const ok = await translateAndCacheLabels(intent.lang);
+          if (chatId) {
+            const msg = ok
+              ? t(intent.lang).settings.lang_changed
+              : `Language set to ${intent.lang}. Menus stay English for now — buttons will update on your next message.`;
+            await ctx.api.sendMessage(chatId, msg).catch(() => {});
+          }
+        });
       }
       return `Language set to ${intent.lang}`;
     }

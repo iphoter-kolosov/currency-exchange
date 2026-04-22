@@ -2,7 +2,8 @@ import type { ChatTurn, Lang } from './storage.ts';
 import { languageName } from '../i18n/index.ts';
 import { withLlmSemaphore } from './queue.ts';
 
-const UI_TRANSLATE_TIMEOUT_MS = 30_000;
+// Runs in background (queueMicrotask) — can be long; Telegram doesn't wait.
+const UI_TRANSLATE_TIMEOUT_MS = 45_000;
 
 export type Intent =
   | { action: 'convert'; amount: number; from: string; to: string }
@@ -22,7 +23,10 @@ export type Intent =
 export type AtomicIntent = Exclude<Intent, { action: 'compound' }>;
 
 const POLLINATIONS_URL = 'https://text.pollinations.ai/';
-const REQUEST_TIMEOUT_MS = 15_000;
+// Stay below Telegram's webhook timeout (~30s). 10s × 2 attempts + overhead
+// keeps us comfortably under the retry threshold so the same update never
+// gets re-delivered by Telegram.
+const REQUEST_TIMEOUT_MS = 10_000;
 
 const SUPPORTED_ISO =
   'USD EUR GBP JPY CHF CNY AUD CAD NZD SEK NOK DKK PLN CZK HUF RON BGN TRY UAH RUB BYN KZT GEL AMD AZN ILS AED SAR INR KRW SGD HKD THB VND MYR IDR PHP MXN BRL ARS CLP ZAR EGP NGN BTC ETH';

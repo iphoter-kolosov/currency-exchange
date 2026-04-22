@@ -32,6 +32,21 @@ export type BotCtx = Context & SessionFlavor<SessionData> & {
   lang: Lang;
 };
 
+const seenUpdates = new Map<number, number>();
+const SEEN_TTL_MS = 120_000;
+
+function alreadyHandled(updateId: number): boolean {
+  const now = Date.now();
+  if (seenUpdates.size > 500) {
+    for (const [k, t] of seenUpdates) {
+      if (now - t > SEEN_TTL_MS) seenUpdates.delete(k);
+    }
+  }
+  if (seenUpdates.has(updateId)) return true;
+  seenUpdates.set(updateId, now);
+  return false;
+}
+
 export function createBot(token: string): Bot<BotCtx> {
   const bot = new Bot<BotCtx>(token);
 
@@ -39,16 +54,23 @@ export function createBot(token: string): Bot<BotCtx> {
     initial: () => ({}),
   }));
 
+  // Dedupe retries: Telegram resends the same update_id if a webhook
+  // reply didn't come back in time. Without this guard every retry
+  // runs the same handler again, leading to duplicate replies.
+  bot.use(async (ctx, next) => {
+    if (alreadyHandled(ctx.update.update_id)) {
+      console.log(`skip duplicate update ${ctx.update.update_id}`);
+      return;
+    }
+    await next();
+  });
+
   bot.use(async (ctx, next) => {
     const uid = ctx.from?.id;
     if (!uid) return next();
     const hint = detectLang(ctx.from?.language_code);
     ctx.user = await getUser(uid, hint);
     ctx.lang = ctx.user.lang;
-    // Load LLM-translated button labels from KV (or fall through to EN)
-    // so that t(ctx.lang) already returns a localised dict by the time
-    // any handler reads from it. Does not trigger translation — that
-    // only happens at set_language time.
     await ensureLabelsFromCache(ctx.user.lang);
     if (ctx.message?.text?.startsWith('/')) {
       ctx.session.mode = undefined;
