@@ -1,4 +1,4 @@
-import type { Lang } from './storage.ts';
+import type { ChatTurn, Lang } from './storage.ts';
 
 export type Intent =
   | { action: 'convert'; amount: number; from: string; to: string }
@@ -40,6 +40,7 @@ Guidelines:
     lang === 'ru' ? 'Russian' : 'English'
   }, then gently remind them you track currencies.
 - If the input is utter gibberish — "chat" asking politely what they need.
+- CONTEXT: previous assistant turns describe what you already did (e.g. "Opened EUR/HUF chart at 1M"). If the user follows up with a short phrase like "а за неделю?", "now in USD?", "и график", resolve the referents from those previous turns. Reuse the same currency pair / amount / timeframe unless the user explicitly changes them.
 - NEVER wrap output in \`\`\` or add explanations.`;
 
 type BucketEntry = { count: number; windowStart: number };
@@ -116,6 +117,7 @@ export async function resolveIntent(
   userText: string,
   lang: Lang,
   userId: number,
+  history: ChatTurn[] = [],
 ): Promise<Intent | null> {
   if (!checkRateLimit(userId)) return null;
 
@@ -129,6 +131,7 @@ export async function resolveIntent(
       body: JSON.stringify({
         messages: [
           { role: 'system', content: SYSTEM_PROMPT(lang) },
+          ...history.map((h) => ({ role: h.role, content: h.content })),
           { role: 'user', content: userText.slice(0, 500) },
         ],
         model: 'openai',

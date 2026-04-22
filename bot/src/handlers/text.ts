@@ -5,6 +5,7 @@ import { handleWatchAdd, handleWatchBase, handleSingleCurrencyAsBase } from './w
 import { handleChartPair, sendChart } from './chart.ts';
 import { handleAlertsPair, handleAlertsValue } from './alerts.ts';
 import { resolveIntent, type Intent } from '../services/ai.ts';
+import { appendContext, getContext } from '../services/storage.ts';
 import { findCurrency } from '../data/currencies.ts';
 import type { Timeframe } from '../services/dates.ts';
 
@@ -13,42 +14,45 @@ async function handleAiFallback(ctx: BotCtx, text: string): Promise<boolean> {
   if (!userId) return false;
   if (ctx.session.mode) return false;
 
-  const intent = await resolveIntent(text, ctx.lang, userId);
+  const history = await getContext(userId).catch(() => []);
+  const intent = await resolveIntent(text, ctx.lang, userId, history);
   if (!intent) return false;
-  await runIntent(ctx, intent);
+  const trace = await runIntent(ctx, intent);
+  if (trace) await appendContext(userId, text, trace).catch(() => {});
   return true;
 }
 
-async function runIntent(ctx: BotCtx, intent: Intent): Promise<void> {
+async function runIntent(ctx: BotCtx, intent: Intent): Promise<string | null> {
   switch (intent.action) {
     case 'convert': {
       const synth = `${intent.amount} ${intent.from} ${intent.to}`;
       await handleConvertText(ctx, synth);
-      return;
+      return `Converted ${intent.amount} ${intent.from.toUpperCase()} to ${intent.to.toUpperCase()}`;
     }
     case 'rate': {
       const synth = `${intent.from} ${intent.to}`;
       await handleConvertText(ctx, synth);
-      return;
+      return `Showed current rate ${intent.from.toUpperCase()}/${intent.to.toUpperCase()}`;
     }
     case 'watch': {
       const cur = findCurrency(intent.base);
-      if (!cur) return;
+      if (!cur) return null;
       await handleSingleCurrencyAsBase(ctx, cur.code);
-      return;
+      return `Showed watchlist with base ${cur.iso}`;
     }
     case 'chart': {
       const from = findCurrency(intent.from);
       const to = findCurrency(intent.to);
-      if (!from || !to) return;
-      await sendChart(ctx, from.code, to.code, intent.tf as Timeframe);
-      return;
+      if (!from || !to) return null;
+      const tf = intent.tf as Timeframe;
+      await sendChart(ctx, from.code, to.code, tf);
+      return `Opened ${from.iso}/${to.iso} chart at ${tf}`;
     }
     case 'chat': {
       await ctx.reply(intent.reply, { parse_mode: 'HTML' }).catch(() =>
         ctx.reply(intent.reply)
       );
-      return;
+      return intent.reply;
     }
   }
 }

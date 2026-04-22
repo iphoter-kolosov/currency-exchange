@@ -83,8 +83,9 @@ export async function sendChart(
     await ctx.reply(t(ctx.lang).common.error);
     return;
   }
+  const canEdit = Boolean(ctx.callbackQuery?.message?.photo);
   try {
-    ctx.replyWithChatAction('upload_photo').catch(() => {});
+    if (!canEdit) ctx.replyWithChatAction('upload_photo').catch(() => {});
     const series = await fetchSeries(base, target, tf);
     if (series.length < 2) {
       await ctx.reply(t(ctx.lang).chart.no_data);
@@ -103,10 +104,24 @@ export async function sendChart(
     ].join('\n\n');
 
     const url = buildChartUrl(series, base, target, tf);
+    const keyboard = timeframeKeyboard(base, target, tf);
+
+    if (canEdit) {
+      try {
+        await ctx.editMessageMedia(
+          { type: 'photo', media: url, caption, parse_mode: 'HTML' },
+          { reply_markup: keyboard },
+        );
+        return;
+      } catch (e) {
+        console.warn('editMessageMedia failed, falling back to reply', e instanceof Error ? e.message : e);
+      }
+    }
+
     await ctx.replyWithPhoto(url, {
       caption,
       parse_mode: 'HTML',
-      reply_markup: timeframeKeyboard(base, target, tf),
+      reply_markup: keyboard,
     });
   } catch (e) {
     await replyError(ctx, e, `loading ${baseCur.iso}/${targetCur.iso} chart for ${tf}`);

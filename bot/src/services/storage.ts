@@ -114,3 +114,35 @@ export async function updateAlert(alert: Alert): Promise<void> {
 export function newId(): string {
   return crypto.randomUUID().split('-')[0];
 }
+
+export type ChatTurn = { role: 'user' | 'assistant'; content: string };
+
+const K_CONTEXT = (uid: number) => ['ctx', uid] as const;
+const CONTEXT_LIMIT = 6;
+const CONTEXT_TTL_MS = 15 * 60 * 1000;
+
+export async function getContext(userId: number): Promise<ChatTurn[]> {
+  const k = await getKv();
+  const entry = await k.get<ChatTurn[]>(K_CONTEXT(userId));
+  return entry.value ?? [];
+}
+
+export async function appendContext(
+  userId: number,
+  user: string,
+  assistant: string,
+): Promise<void> {
+  const k = await getKv();
+  const current = (await k.get<ChatTurn[]>(K_CONTEXT(userId))).value ?? [];
+  const next = [
+    ...current,
+    { role: 'user' as const, content: user.slice(0, 400) },
+    { role: 'assistant' as const, content: assistant.slice(0, 400) },
+  ].slice(-CONTEXT_LIMIT * 2);
+  await k.set(K_CONTEXT(userId), next, { expireIn: CONTEXT_TTL_MS });
+}
+
+export async function clearContext(userId: number): Promise<void> {
+  const k = await getKv();
+  await k.delete(K_CONTEXT(userId));
+}
