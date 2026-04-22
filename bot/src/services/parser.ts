@@ -65,6 +65,7 @@ export function parseInput(raw: string): ParseResult {
   text = text.replace(symRe, ' $1 ').replace(/\s+/g, ' ').trim();
 
   const parts = text.split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return { kind: 'unknown' };
 
   let amount: number | null = null;
   const tokens: string[] = [];
@@ -78,9 +79,15 @@ export function parseInput(raw: string): ParseResult {
     }
   }
 
+  // Strict mode: every token must resolve to a currency. Garbage words like
+  // "ежедневная", "утром", "сводка" would otherwise be silently dropped and
+  // a stray "eur huf" at the end of a long instruction would parse as a rate
+  // request, hijacking messages meant for the LLM.
+  const resolved = tokens.map((tok) => resolveToken(tok));
+  if (resolved.some((c) => c === null)) return { kind: 'unknown' };
+
   const currencies: Currency[] = [];
-  for (const tok of tokens) {
-    const c = resolveToken(tok);
+  for (const c of resolved) {
     if (c && !currencies.find((x) => x.code === c.code)) {
       currencies.push(c);
       if (currencies.length === 2) break;
@@ -92,9 +99,6 @@ export function parseInput(raw: string): ParseResult {
   }
   if (currencies.length === 2) {
     return { kind: 'rate', from: currencies[0], to: currencies[1] };
-  }
-  if (currencies.length === 1 && amount !== null) {
-    return { kind: 'unknown', missing: 'to' };
   }
   return { kind: 'unknown' };
 }
