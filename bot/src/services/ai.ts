@@ -5,6 +5,7 @@ export type Intent =
   | { action: 'rate'; from: string; to: string }
   | { action: 'watch'; base: string }
   | { action: 'chart'; from: string; to: string; tf: string }
+  | { action: 'daily_digest'; scope: 'pair' | 'watchlist'; from?: string; to?: string; hour: number; minute: number }
   | { action: 'chat'; reply: string };
 
 const POLLINATIONS_URL = 'https://text.pollinations.ai/';
@@ -24,7 +25,8 @@ Reply with ONE JSON object — no markdown, no code fences, no commentary. Pick 
 2. {"action":"rate","from":"<ISO>","to":"<ISO>"} — current rate only.
 3. {"action":"watch","base":"<ISO>"} — show a board of popular currencies against this base.
 4. {"action":"chart","from":"<ISO>","to":"<ISO>","tf":"1D"|"1W"|"1M"|"3M"|"6M"|"1Y"|"2Y"} — history chart. Default tf is 1M.
-5. {"action":"chat","reply":"<short message in ${
+5. {"action":"daily_digest","scope":"pair"|"watchlist","from":"<ISO>","to":"<ISO>","hour":<0-23>,"minute":<0-59>} — schedule a daily summary. Use scope="pair" with from/to when the user names a specific pair; use scope="watchlist" (omit from/to) when they ask for their whole list. Time is in the user's local hours/minutes.
+6. {"action":"chat","reply":"<short message in ${
     lang === 'ru' ? 'Russian' : 'English'
   }>"} — greetings, off-topic, clarifications, smalltalk.
 
@@ -103,6 +105,18 @@ function validateIntent(obj: unknown): Intent | null {
         to: o.to,
         tf: allowed.includes(tf) ? tf : '1M',
       };
+    }
+    case 'daily_digest': {
+      const scope = o.scope === 'watchlist' ? 'watchlist' : 'pair';
+      const hour = Number(o.hour);
+      const minute = Number(o.minute);
+      if (!Number.isInteger(hour) || hour < 0 || hour > 23) return null;
+      if (!Number.isInteger(minute) || minute < 0 || minute > 59) return null;
+      if (scope === 'pair') {
+        if (typeof o.from !== 'string' || typeof o.to !== 'string') return null;
+        return { action: 'daily_digest', scope, from: o.from, to: o.to, hour, minute };
+      }
+      return { action: 'daily_digest', scope: 'watchlist', hour, minute };
     }
     case 'chat': {
       if (typeof o.reply !== 'string' || !o.reply.trim()) return null;

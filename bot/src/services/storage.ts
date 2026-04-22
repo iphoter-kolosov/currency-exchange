@@ -1,9 +1,11 @@
 import { DEFAULT_WATCHLIST } from '../data/currencies.ts';
+import { DEFAULT_TZ } from './timezones.ts';
 
 export type Lang = 'en' | 'ru';
 
 export type UserPrefs = {
   lang: Lang;
+  tz: string;
   onboarded: boolean;
   watchlist: string[];
   defaultBase: string;
@@ -21,13 +23,15 @@ export type Alert = {
   triggeredAt?: number;
   active: boolean;
   baseline?: number;
+  lastTriggeredYmd?: string;
 };
 
 export type AlertCondition =
   | { type: 'above'; value: number }
   | { type: 'below'; value: number }
   | { type: 'pct_up'; value: number; windowHours: number }
-  | { type: 'pct_down'; value: number; windowHours: number };
+  | { type: 'pct_down'; value: number; windowHours: number }
+  | { type: 'daily_digest'; hour: number; minute: number; scope: 'pair' | 'watchlist' };
 
 let kv: Deno.Kv | null = null;
 
@@ -47,6 +51,7 @@ export async function getUser(userId: number, hintLang?: Lang): Promise<UserPref
   if (entry.value) {
     const user = entry.value;
     if (user.onboarded === undefined) user.onboarded = false;
+    if (!user.tz) user.tz = DEFAULT_TZ;
     const now = Date.now();
     if (now - user.lastActiveAt > 60_000) {
       user.lastActiveAt = now;
@@ -56,6 +61,7 @@ export async function getUser(userId: number, hintLang?: Lang): Promise<UserPref
   }
   const fresh: UserPrefs = {
     lang: hintLang ?? 'en',
+    tz: DEFAULT_TZ,
     onboarded: false,
     watchlist: DEFAULT_WATCHLIST.slice(),
     defaultBase: 'usd',

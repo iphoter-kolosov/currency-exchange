@@ -75,7 +75,29 @@ export const en = {
     language_en: '🇬🇧 English',
     language_ru: '🇷🇺 Русский',
     lang_changed: 'Language updated.',
+    timezone: 'Time zone',
+    tz_changed: 'Time zone updated.',
+    tz_prompt: 'Pick your time zone (used for daily digests):',
     about: 'About',
+  },
+  digest: {
+    menu_new: '📅 Daily digest',
+    scope_pair: 'One pair',
+    scope_watchlist: 'Whole watchlist',
+    pick_scope: 'Pick what to digest:',
+    pick_pair: 'Send the pair (e.g. <b>eur usd</b>).',
+    pick_time: (tz: string) => `Pick delivery time (${tz}):`,
+    pick_time_custom: 'Or send a custom time like <b>09:30</b>.',
+    created_pair: (pair: string, time: string, tz: string) =>
+      `✅ Daily digest set for <b>${pair}</b> at <b>${time}</b> (${tz}).`,
+    created_watchlist: (time: string, tz: string) =>
+      `✅ Daily watchlist digest set for <b>${time}</b> (${tz}).`,
+    label_pair: (pair: string, time: string) => `📅 ${pair} daily @ ${time}`,
+    label_watchlist: (time: string) => `📅 watchlist daily @ ${time}`,
+    pair: (pair: string, price: string, change: string, prev: string) =>
+      `📅 <b>Daily digest · ${pair}</b>\n\nNow: <b>${price}</b>  ${change}\nYesterday: ${prev}`,
+    watchlist: (base: string) => `📅 <b>Daily digest · 1 ${base}</b>`,
+    time_invalid: 'Couldn\'t read the time. Send something like <b>09:00</b> or <b>21:30</b>.',
   },
   help: {
     text: `<b>Currency Tracker Bot</b>

@@ -77,7 +77,29 @@ export const ru: Dict = {
     language_en: '🇬🇧 English',
     language_ru: '🇷🇺 Русский',
     lang_changed: 'Язык обновлён.',
+    timezone: 'Часовой пояс',
+    tz_changed: 'Часовой пояс обновлён.',
+    tz_prompt: 'Выбери свой часовой пояс (нужен для ежедневных сводок):',
     about: 'О боте',
+  },
+  digest: {
+    menu_new: '📅 Ежедневная сводка',
+    scope_pair: 'Одна пара',
+    scope_watchlist: 'Весь список',
+    pick_scope: 'Что присылать в сводке:',
+    pick_pair: 'Пришли пару (например <b>eur usd</b>).',
+    pick_time: (tz: string) => `Время отправки (${tz}):`,
+    pick_time_custom: 'Или пришли своё время, например <b>09:30</b>.',
+    created_pair: (pair: string, time: string, tz: string) =>
+      `✅ Сводка по <b>${pair}</b> будет приходить в <b>${time}</b> (${tz}).`,
+    created_watchlist: (time: string, tz: string) =>
+      `✅ Ежедневная сводка по списку — в <b>${time}</b> (${tz}).`,
+    label_pair: (pair: string, time: string) => `📅 ${pair} ежедневно @ ${time}`,
+    label_watchlist: (time: string) => `📅 список ежедневно @ ${time}`,
+    pair: (pair: string, price: string, change: string, prev: string) =>
+      `📅 <b>Сводка · ${pair}</b>\n\nСейчас: <b>${price}</b>  ${change}\nВчера: ${prev}`,
+    watchlist: (base: string) => `📅 <b>Сводка · 1 ${base}</b>`,
+    time_invalid: 'Не разобрал время. Пришли в формате <b>09:00</b> или <b>21:30</b>.',
   },
   help: {
     text: `<b>Currency Tracker Bot</b>

@@ -19,7 +19,9 @@ export type SessionData = {
     | { type: 'chart:pair' }
     | { type: 'chart:await_tf'; base: string; target: string }
     | { type: 'alerts:pair' }
-    | { type: 'alerts:value'; base: string; target: string; condType: 'above' | 'below' | 'pct_up' | 'pct_down' };
+    | { type: 'alerts:value'; base: string; target: string; condType: 'above' | 'below' | 'pct_up' | 'pct_down' }
+    | { type: 'digest:pair' }
+    | { type: 'digest:time'; scope: 'pair' | 'watchlist'; base: string; target: string };
 };
 
 export type BotCtx = Context & SessionFlavor<SessionData> & {

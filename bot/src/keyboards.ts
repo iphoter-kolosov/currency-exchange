@@ -2,6 +2,7 @@ import { InlineKeyboard } from 'grammy';
 import { t } from './i18n/index.ts';
 import type { Lang } from './services/storage.ts';
 import { TIMEFRAMES } from './services/dates.ts';
+import { TIMEZONES, tzLabel } from './services/timezones.ts';
 
 export function mainMenu(lang: Lang): InlineKeyboard {
   const T = t(lang).start;
@@ -46,13 +47,53 @@ export function timeframeKeyboard(base: string, target: string, current?: string
 
 export function alertsMenu(lang: Lang, alerts: { id: string; label: string }[]): InlineKeyboard {
   const T = t(lang).alerts;
+  const D = t(lang).digest;
   const C = t(lang).common;
   const kb = new InlineKeyboard();
   for (const a of alerts) {
     kb.text(`🗑 ${a.label}`, `alerts:del:${a.id}`).row();
   }
   kb.text(T.new, 'alerts:new').row();
+  kb.text(D.menu_new, 'digest:new').row();
   kb.text(C.back, 'menu:home');
+  return kb;
+}
+
+export function digestScopeMenu(lang: Lang): InlineKeyboard {
+  const D = t(lang).digest;
+  const C = t(lang).common;
+  return new InlineKeyboard()
+    .text(D.scope_pair, 'digest:scope:pair')
+    .text(D.scope_watchlist, 'digest:scope:watchlist').row()
+    .text(C.cancel, 'menu:alerts');
+}
+
+const DIGEST_TIMES = ['08:00', '09:00', '10:00', '12:00', '18:00', '21:00'];
+
+export function digestTimeMenu(lang: Lang, scope: 'pair' | 'watchlist', pair: string): InlineKeyboard {
+  const C = t(lang).common;
+  const kb = new InlineKeyboard();
+  for (let i = 0; i < DIGEST_TIMES.length; i += 3) {
+    for (const tt of DIGEST_TIMES.slice(i, i + 3)) {
+      kb.text(tt, `digest:time:${scope}:${pair}:${tt}`);
+    }
+    kb.row();
+  }
+  kb.text(C.cancel, 'menu:alerts');
+  return kb;
+}
+
+export function timezoneMenu(lang: Lang, current: string): InlineKeyboard {
+  const C = t(lang).common;
+  const kb = new InlineKeyboard();
+  for (let i = 0; i < TIMEZONES.length; i += 2) {
+    for (const tz of TIMEZONES.slice(i, i + 2)) {
+      const prefix = tz.id === current ? '✓ ' : '';
+      kb.text(`${prefix}${tzLabel(tz.id, lang)}`, `tz:set:${tz.id}`);
+    }
+    kb.row();
+  }
+  kb.text(C.back, 'menu:settings');
   return kb;
 }
 
