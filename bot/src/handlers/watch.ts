@@ -164,7 +164,10 @@ export async function handleSingleCurrencyAsBase(ctx: BotCtx, text: string): Pro
   if (!trimmed || /\s/.test(trimmed)) return false;
   const cur = findCurrency(trimmed);
   if (!cur) return false;
+  return showWatchAs(ctx, cur);
+}
 
+export async function showWatchAs(ctx: BotCtx, cur: { code: string; iso: string }): Promise<boolean> {
   try {
     const list = ctx.user.watchlist.includes(cur.code)
       ? ctx.user.watchlist

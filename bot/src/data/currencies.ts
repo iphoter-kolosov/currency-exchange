@@ -67,9 +67,97 @@ export const CURRENCY_BY_ISO: Record<string, Currency> = Object.fromEntries(
 
 export const DEFAULT_WATCHLIST = ['eur', 'usd', 'uah', 'rub', 'pln'];
 
+/** Native-language aliases mapped to ISO codes. Used by findCurrency so
+ * common forms like "форинт", "евро", "dollar" resolve without a trip
+ * to the LLM. Russian forms include case variants (именительный,
+ * родительный, множественное) because users don't dictionary-form
+ * their typing. Kept intentionally focused on the currencies people
+ * actually say by name — obscure ones fall back to ISO codes. */
+export const CURRENCY_ALIASES: Record<string, string> = {
+  // USD
+  dollar: 'usd', dollars: 'usd', usd$: 'usd', buck: 'usd', bucks: 'usd',
+  'доллар': 'usd', 'доллара': 'usd', 'доллары': 'usd', 'долларов': 'usd',
+  'доллару': 'usd', 'долларе': 'usd', 'долларом': 'usd',
+  'бакс': 'usd', 'бакса': 'usd', 'баксы': 'usd', 'баксов': 'usd',
+  // EUR
+  euro: 'eur', euros: 'eur',
+  'евро': 'eur', 'еврик': 'eur', 'еврики': 'eur',
+  // GBP
+  pound: 'gbp', pounds: 'gbp', sterling: 'gbp',
+  'фунт': 'gbp', 'фунта': 'gbp', 'фунты': 'gbp', 'фунтов': 'gbp',
+  // JPY
+  yen: 'jpy',
+  'йена': 'jpy', 'йены': 'jpy', 'йен': 'jpy', 'йену': 'jpy',
+  'иена': 'jpy', 'иены': 'jpy', 'иен': 'jpy',
+  // CHF
+  franc: 'chf', francs: 'chf',
+  'франк': 'chf', 'франка': 'chf', 'франки': 'chf', 'франков': 'chf',
+  // CNY
+  yuan: 'cny', yuans: 'cny', renminbi: 'cny', rmb: 'cny',
+  'юань': 'cny', 'юаня': 'cny', 'юани': 'cny', 'юаней': 'cny',
+  // UAH
+  hryvnia: 'uah', hryvnias: 'uah', grivna: 'uah',
+  'гривна': 'uah', 'гривны': 'uah', 'гривне': 'uah', 'гривен': 'uah',
+  'гривну': 'uah', 'гривной': 'uah', 'грн': 'uah', 'гривн': 'uah',
+  // RUB
+  ruble: 'rub', rouble: 'rub', rubles: 'rub', roubles: 'rub',
+  'рубль': 'rub', 'рубля': 'rub', 'рубли': 'rub', 'рублей': 'rub',
+  'рублю': 'rub', 'рублем': 'rub',
+  // BYN
+  'белрубль': 'byn',
+  // PLN
+  zloty: 'pln', zlotys: 'pln', zl: 'pln',
+  'злотый': 'pln', 'злотые': 'pln', 'злотых': 'pln', 'злот': 'pln',
+  // HUF
+  forint: 'huf', forints: 'huf', ft: 'huf',
+  'форинт': 'huf', 'форинта': 'huf', 'форинты': 'huf', 'форинтов': 'huf',
+  'форинту': 'huf', 'форинтом': 'huf',
+  // CZK
+  koruna: 'czk',
+  // TRY
+  lira: 'try', liras: 'try',
+  'лира': 'try', 'лиры': 'try', 'лир': 'try',
+  // KZT
+  tenge: 'kzt',
+  'тенге': 'kzt',
+  // AED
+  dirham: 'aed', dirhams: 'aed',
+  'дирхам': 'aed', 'дирхама': 'aed', 'дирхамы': 'aed',
+  // SAR
+  riyal: 'sar', riyals: 'sar',
+  'риял': 'sar', 'рияла': 'sar', 'риялы': 'sar',
+  // ILS
+  shekel: 'ils', shekels: 'ils',
+  'шекель': 'ils', 'шекеля': 'ils', 'шекели': 'ils', 'шекелей': 'ils',
+  // INR
+  rupee: 'inr', rupees: 'inr',
+  'рупия': 'inr', 'рупии': 'inr', 'рупий': 'inr',
+  // KRW
+  won: 'krw',
+  'вона': 'krw', 'воны': 'krw', 'вон': 'krw',
+  // THB
+  baht: 'thb',
+  'бат': 'thb', 'баты': 'thb', 'батов': 'thb',
+  // BRL
+  real: 'brl', reais: 'brl',
+  'реал': 'brl', 'реалы': 'brl', 'реалов': 'brl',
+  // ZAR
+  rand: 'zar', rands: 'zar',
+  'рэнд': 'zar', 'рэнды': 'zar',
+  // BTC
+  bitcoin: 'btc', bitcoins: 'btc',
+  'биткоин': 'btc', 'биткоины': 'btc', 'биткойн': 'btc', 'биткойны': 'btc',
+  'биток': 'btc', 'битка': 'btc', 'битки': 'btc',
+  // ETH
+  ether: 'eth', ethereum: 'eth', eth$: 'eth',
+  'эфир': 'eth', 'эфира': 'eth', 'эфиру': 'eth', 'эфириум': 'eth', 'эфирка': 'eth',
+};
+
 export function findCurrency(query: string): Currency | null {
   const q = query.trim().toLowerCase();
   if (!q) return null;
+  const aliased = CURRENCY_ALIASES[q];
+  if (aliased && CURRENCY_BY_CODE[aliased]) return CURRENCY_BY_CODE[aliased];
   return (
     CURRENCY_BY_CODE[q] ||
     CURRENCIES.find((c) => c.iso.toLowerCase() === q) ||

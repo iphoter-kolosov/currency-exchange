@@ -1,8 +1,10 @@
 import type { Bot } from 'grammy';
 import type { BotCtx } from '../bot.ts';
 import { parseInput } from '../services/parser.ts';
-import { convert } from '../services/rates.ts';
+import { convert, getRateForDate } from '../services/rates.ts';
 import { formatAmount, formatRate } from '../services/format.ts';
+import { CURRENCY_BY_CODE } from '../data/currencies.ts';
+import { showWatchAs } from './watch.ts';
 import { t, tpl } from '../i18n/index.ts';
 import { replyError, withTyping } from './_error.ts';
 
@@ -28,9 +30,43 @@ export function registerConvert(bot: Bot<BotCtx>): void {
 }
 
 export async function handleConvertText(ctx: BotCtx, raw: string): Promise<boolean> {
-  const parsed = parseInput(raw);
+  const defaultBase = CURRENCY_BY_CODE[ctx.user.defaultBase] ?? null;
+  const parsed = parseInput(raw, { tz: ctx.user.tz, defaultBase });
   if (parsed.kind === 'unknown') return false;
   const C = t(ctx.lang).convert;
+
+  if (parsed.kind === 'watch') {
+    return showWatchAs(ctx, parsed.base);
+  }
+
+  if (parsed.kind === 'historical') {
+    try {
+      const payload = await withTyping(ctx, () => getRateForDate(parsed.from.code, parsed.date));
+      const rate = parsed.to.code === parsed.from.code ? 1 : payload.rates[parsed.to.code];
+      if (typeof rate !== 'number') {
+        const msg = ctx.lang === 'ru'
+          ? `Нет данных по <b>${parsed.from.iso}/${parsed.to.iso}</b> на <code>${parsed.date}</code>.`
+          : `No data for <b>${parsed.from.iso}/${parsed.to.iso}</b> on <code>${parsed.date}</code>.`;
+        await ctx.reply(msg, { parse_mode: 'HTML' });
+        return true;
+      }
+      const msg = tpl(C.result, {
+        amount: formatAmount(1, parsed.from, ctx.lang),
+        from: parsed.from.iso,
+        value: formatAmount(rate, parsed.to, ctx.lang),
+        to: parsed.to.iso,
+        rate: formatRate(rate, ctx.lang),
+        date: payload.date,
+      });
+      await ctx.reply(msg, { parse_mode: 'HTML' });
+      return true;
+    } catch (e) {
+      await replyError(ctx, e, `historical ${parsed.from.iso}/${parsed.to.iso} on ${parsed.date}`);
+      return true;
+    }
+  }
+
+  // convert + rate
   const amount = parsed.kind === 'convert' ? parsed.amount : 1;
   try {
     const result = await withTyping(ctx, () => convert(amount, parsed.from.code, parsed.to.code));
