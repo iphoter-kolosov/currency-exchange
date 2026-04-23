@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    branches: [main, claude/currency-calculator-app-AoLgX]
   workflow_dispatch:
 
 permissions:
