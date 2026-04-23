@@ -11,8 +11,6 @@ export type Dict = {
   cannotRemoveBase: string;
   settings: string;
   language: string;
-  russian: string;
-  english: string;
   loading: string;
   updatedAt: string;
   offline: string;
@@ -62,8 +60,6 @@ export const en: Dict = {
   cannotRemoveBase: 'Cannot remove — selected as source',
   settings: 'Settings',
   language: 'Language',
-  russian: 'Русский',
-  english: 'English',
   loading: 'Loading…',
   updatedAt: 'Updated {date}',
   offline: 'Offline — using cached rates',

@@ -40,8 +40,12 @@ export type AppState = {
 
 function detectLanguage(): Language {
   if (typeof navigator === 'undefined') return 'en';
-  const n = navigator.language || '';
-  return n.toLowerCase().startsWith('ru') ? 'ru' : 'en';
+  const n = (navigator.language || '').toLowerCase();
+  if (n.startsWith('ru')) return 'ru';
+  if (n.startsWith('es')) return 'es';
+  if (n.startsWith('zh')) return 'zh';
+  if (n.startsWith('ar')) return 'ar';
+  return 'en';
 }
 
 export const useStore = create<AppState>()(

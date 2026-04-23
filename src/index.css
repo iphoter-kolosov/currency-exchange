@@ -178,6 +178,19 @@ input {
 .menu-item.is-active {
   color: var(--accent);
 }
+.menu-item-lang {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.menu-item-lang .fi {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background-size: cover;
+  background-position: center;
+  flex-shrink: 0;
+}
 
 /* Main */
 .main {
@@ -644,6 +657,10 @@ input {
   grid-template-columns: 1fr 1fr;
   gap: 10px;
   margin-bottom: 24px;
+}
+
+.onboarding-lang-row > .onboarding-lang:last-child:nth-child(odd) {
+  grid-column: span 2;
 }
 
 .onboarding-lang {

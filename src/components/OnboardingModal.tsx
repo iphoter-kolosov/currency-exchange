@@ -2,7 +2,13 @@ import { useState } from 'react';
 import { useStore } from '../state/store';
 import { en } from '../i18n/en';
 import { ru } from '../i18n/ru';
-import type { Language } from '../i18n';
+import { es } from '../i18n/es';
+import { zh } from '../i18n/zh';
+import { ar } from '../i18n/ar';
+import { isRTL, type Language } from '../i18n';
+import { LANGUAGES } from '../i18n/languages';
+
+const DICTS = { en, ru, es, zh, ar } as const;
 
 export function OnboardingModal() {
   const setLanguage = useStore((s) => s.setLanguage);
@@ -10,12 +16,11 @@ export function OnboardingModal() {
   const currentLang = useStore((s) => s.language);
   const [pick, setPick] = useState<Language>(currentLang);
 
-  const dict = pick === 'ru' ? ru : en;
-  const T = dict.onboarding;
+  const T = DICTS[pick].onboarding;
 
   return (
     <div className="onboarding-backdrop" role="dialog" aria-modal="true">
-      <div className="onboarding-card">
+      <div className="onboarding-card" dir={isRTL(pick) ? 'rtl' : 'ltr'}>
         <div className="onboarding-emoji" aria-hidden="true">👋</div>
         <h1 className="onboarding-title">
           {en.onboarding.welcome}
@@ -26,20 +31,16 @@ export function OnboardingModal() {
 
         <div className="onboarding-section-label">{T.chooseLanguage}</div>
         <div className="onboarding-lang-row">
-          <button
-            className={`onboarding-lang ${pick === 'en' ? 'is-picked' : ''}`}
-            onClick={() => setPick('en')}
-          >
-            <span className="fi fi-gb" />
-            <span>English</span>
-          </button>
-          <button
-            className={`onboarding-lang ${pick === 'ru' ? 'is-picked' : ''}`}
-            onClick={() => setPick('ru')}
-          >
-            <span className="fi fi-ru" />
-            <span>Русский</span>
-          </button>
+          {LANGUAGES.map((l) => (
+            <button
+              key={l.id}
+              className={`onboarding-lang ${pick === l.id ? 'is-picked' : ''}`}
+              onClick={() => setPick(l.id)}
+            >
+              <span className={`fi fi-${l.flagCode}`} />
+              <span>{l.native}</span>
+            </button>
+          ))}
         </div>
 
         <button
