@@ -119,6 +119,7 @@ export function createBot(token: string): Bot<BotCtx> {
 
   bot.callbackQuery('menu:home', async (ctx) => {
     await ctx.answerCallbackQuery();
+    ctx.session.mode = undefined;
     const T = t(ctx.lang).start;
     const name = ctx.from?.first_name ?? 'there';
     const greeting = tpl(T.greeting, { name });

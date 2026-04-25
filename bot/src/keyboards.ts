@@ -5,7 +5,7 @@ import { TIMEFRAMES } from './services/dates.ts';
 import { TIMEZONES, tzLabel } from './services/timezones.ts';
 
 export function cancelKb(lang: Lang): InlineKeyboard {
-  return new InlineKeyboard().text(t(lang).common.cancel, 'mode:cancel');
+  return new InlineKeyboard().text(t(lang).common.askAssistant, 'menu:home');
 }
 
 export function mainMenu(lang: Lang): InlineKeyboard {
@@ -74,7 +74,7 @@ export function digestScopeMenu(lang: Lang): InlineKeyboard {
   return new InlineKeyboard()
     .text(D.scope_pair, 'digest:scope:pair')
     .text(D.scope_watchlist, 'digest:scope:watchlist').row()
-    .text(C.cancel, 'menu:alerts');
+    .text(C.askAssistant, 'menu:home');
 }
 
 const DIGEST_TIMES = ['08:00', '09:00', '10:00', '12:00', '18:00', '21:00'];
@@ -88,7 +88,7 @@ export function digestTimeMenu(lang: Lang, scope: 'pair' | 'watchlist', pair: st
     }
     kb.row();
   }
-  kb.text(C.cancel, 'menu:alerts');
+  kb.text(C.askAssistant, 'menu:home');
   return kb;
 }
 
@@ -104,7 +104,7 @@ export function timezoneMenu(lang: Lang, current: string): InlineKeyboard {
     kb.row();
   }
   kb.text(S.tz_custom, 'tz:custom').row();
-  kb.text(C.back, 'menu:settings');
+  kb.text(C.askAssistant, 'menu:home');
   return kb;
 }
 
@@ -116,6 +116,6 @@ export function alertTypeMenu(lang: Lang, base: string, target: string): InlineK
     .text(T.type_below, `alerts:type:below:${base}:${target}`).row()
     .text(T.type_pct_up, `alerts:type:pct_up:${base}:${target}`)
     .text(T.type_pct_down, `alerts:type:pct_down:${base}:${target}`).row()
-    .text(C.cancel, 'menu:alerts');
+    .text(C.askAssistant, 'menu:home');
 }
 
