@@ -11,6 +11,7 @@ import { registerAlerts } from './handlers/alerts.ts';
 import { registerSettings } from './handlers/settings.ts';
 import { registerInline } from './handlers/inline.ts';
 import { registerText } from './handlers/text.ts';
+import { registerStats } from './handlers/stats.ts';
 
 export type SessionData = {
   mode?:
@@ -113,6 +114,7 @@ export function createBot(token: string): Bot<BotCtx> {
   registerAlerts(bot);
   registerSettings(bot);
   registerInline(bot);
+  registerStats(bot);
   registerText(bot);
 
   bot.callbackQuery('menu:home', async (ctx) => {

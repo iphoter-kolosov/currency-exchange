@@ -116,6 +116,13 @@ export async function* iterateAllAlerts(): AsyncGenerator<Alert> {
   }
 }
 
+export async function* iterateAllUsers(): AsyncGenerator<UserPrefs> {
+  const k = await getKv();
+  for await (const entry of k.list<UserPrefs>({ prefix: ['user'] })) {
+    yield entry.value;
+  }
+}
+
 export async function updateAlert(alert: Alert): Promise<void> {
   const k = await getKv();
   await k.set(K_ALERT(alert.userId, alert.id), alert);
