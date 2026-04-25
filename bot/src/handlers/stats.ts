@@ -1,12 +1,18 @@
 import type { Bot } from 'grammy';
 import type { BotCtx } from '../bot.ts';
 import { iterateAllAlerts, iterateAllUsers } from '../services/storage.ts';
-
-const ADMIN_USER_ID = 437010992;
+import {
+  ADMIN_USER_ID,
+  getDiscussionGroupId,
+  getNewsChannelId,
+  isAdmin,
+  isAiDisabled,
+  iterateReferralCounts,
+} from '../services/news.ts';
 
 export function registerStats(bot: Bot<BotCtx>): void {
   bot.command('stats', async (ctx) => {
-    if (ctx.from?.id !== ADMIN_USER_ID) return;
+    if (!isAdmin(ctx.from?.id)) return;
 
     const now = Date.now();
     const day = 24 * 60 * 60 * 1000;
@@ -37,6 +43,17 @@ export function registerStats(bot: Bot<BotCtx>): void {
       }
     }
 
+    let totalReferrals = 0;
+    let referrers = 0;
+    for await (const r of iterateReferralCounts()) {
+      totalReferrals += r.count;
+      referrers++;
+    }
+
+    const channelId = await getNewsChannelId();
+    const groupId = await getDiscussionGroupId();
+    const aiOff = await isAiDisabled();
+
     const langLine = Object.entries(langs)
       .sort(([, a], [, b]) => b - a)
       .map(([k, v]) => `${k} ${v}`)
@@ -51,8 +68,16 @@ export function registerStats(bot: Bot<BotCtx>): void {
       `✅ Onboarded: <b>${onboarded}</b> (${onboardedPct}%)`,
       `🌐 Langs: ${langLine}`,
       `🔔 Active alerts: <b>${activeAlerts}</b> across ${alertUserIds.size} user(s)`,
+      `🤝 Referrals: <b>${totalReferrals}</b> from ${referrers} inviter(s)`,
+      '',
+      '<b>News</b>',
+      `📰 Channel: ${channelId ?? '<i>not set</i>'}`,
+      `💬 Group: ${groupId ?? '<i>not set</i>'}`,
+      `🤖 AI cheerleader: ${aiOff ? '🔴 OFF' : '🟢 ON'}`,
     ];
 
     await ctx.reply(lines.join('\n'), { parse_mode: 'HTML' });
   });
 }
+
+export { ADMIN_USER_ID };

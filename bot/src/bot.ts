@@ -12,6 +12,9 @@ import { registerSettings } from './handlers/settings.ts';
 import { registerInline } from './handlers/inline.ts';
 import { registerText } from './handlers/text.ts';
 import { registerStats } from './handlers/stats.ts';
+import { registerAdmin } from './handlers/admin.ts';
+import { registerComments } from './handlers/comments.ts';
+import { getDiscussionGroupId } from './services/news.ts';
 
 export type SessionData = {
   mode?:
@@ -115,6 +118,8 @@ export function createBot(token: string): Bot<BotCtx> {
   registerSettings(bot);
   registerInline(bot);
   registerStats(bot);
+  registerAdmin(bot);
+  registerComments(bot);
   registerText(bot);
 
   bot.callbackQuery('menu:home', async (ctx) => {

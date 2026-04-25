@@ -5,6 +5,7 @@ import { isSupportedLang, SUPPORTED_LANGS, t, tpl } from '../i18n/index.ts';
 import { LANGUAGES } from '../i18n/languages.ts';
 import { mainMenu } from '../keyboards.ts';
 import { resetUser } from '../services/storage.ts';
+import { setReferrer } from '../services/news.ts';
 
 const ONBOARDING_TEXT =
   '👋 <b>Welcome!</b> · <b>Добро пожаловать!</b>\n\n' +
@@ -34,8 +35,20 @@ async function showGreeting(ctx: BotCtx, edit = false): Promise<void> {
   }
 }
 
+async function maybeSaveReferrer(ctx: BotCtx): Promise<void> {
+  const arg = ctx.match;
+  if (typeof arg !== 'string') return;
+  const m = arg.match(/^ref_(\d+)$/);
+  if (!m) return;
+  const inviterUid = Number(m[1]);
+  const invitedUid = ctx.from?.id;
+  if (!invitedUid || !Number.isFinite(inviterUid)) return;
+  await setReferrer(invitedUid, inviterUid).catch(() => false);
+}
+
 export function registerStart(bot: Bot<BotCtx>): void {
   bot.command('start', async (ctx) => {
+    await maybeSaveReferrer(ctx);
     if (!ctx.user.onboarded) {
       await ctx.reply(ONBOARDING_TEXT, {
         parse_mode: 'HTML',
