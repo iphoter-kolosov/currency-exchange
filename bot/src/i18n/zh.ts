@@ -14,6 +14,7 @@ export const zh: Dict = {
   common: {
     cancel: '取消',
     back: '← 返回',
+    askAssistant: '💬 或者直接问我',
     done: '完成',
     delete: '删除',
     add: '+ 添加',

@@ -22,7 +22,7 @@ export function watchMenu(lang: Lang): InlineKeyboard {
   return new InlineKeyboard()
     .text('🔄', 'watch:refresh').text(C.add, 'watch:add').row()
     .text(W.change_base, 'watch:base').text('➖ ' + C.delete, 'watch:remove').row()
-    .text(C.back, 'menu:home');
+    .text(C.askAssistant, 'menu:home');
 }
 
 export function watchRemoveList(lang: Lang, codes: string[]): InlineKeyboard {
@@ -37,7 +37,12 @@ export function watchRemoveList(lang: Lang, codes: string[]): InlineKeyboard {
   return kb;
 }
 
-export function timeframeKeyboard(base: string, target: string, current?: string): InlineKeyboard {
+export function timeframeKeyboard(
+  lang: Lang,
+  base: string,
+  target: string,
+  current?: string,
+): InlineKeyboard {
   const kb = new InlineKeyboard();
   for (const tf of TIMEFRAMES) {
     const label = current === tf ? `▸ ${tf}` : tf;
@@ -45,7 +50,7 @@ export function timeframeKeyboard(base: string, target: string, current?: string
   }
   kb.row();
   kb.text('🔁 Swap', `chart:swap:${base}:${target}:${current ?? '1M'}`);
-  kb.text('← Back', 'menu:home');
+  kb.text(t(lang).common.askAssistant, 'menu:home');
   return kb;
 }
 
@@ -59,7 +64,7 @@ export function alertsMenu(lang: Lang, alerts: { id: string; label: string }[]):
   }
   kb.text(T.new, 'alerts:new').row();
   kb.text(D.menu_new, 'digest:new').row();
-  kb.text(C.back, 'menu:home');
+  kb.text(C.askAssistant, 'menu:home');
   return kb;
 }
 

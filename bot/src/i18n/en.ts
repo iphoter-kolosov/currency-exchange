@@ -13,6 +13,7 @@ export type Dict = {
   common: {
     cancel: string;
     back: string;
+    askAssistant: string;
     done: string;
     delete: string;
     add: string;
@@ -119,6 +120,7 @@ export const en: Dict = {
   common: {
     cancel: 'Cancel',
     back: '← Back',
+    askAssistant: '💬 Or just ask me',
     done: 'Done',
     delete: 'Delete',
     add: '+ Add',

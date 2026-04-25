@@ -14,6 +14,7 @@ export const ar: Dict = {
   common: {
     cancel: 'إلغاء',
     back: '← رجوع',
+    askAssistant: '💬 أو فقط اسألني',
     done: 'تم',
     delete: 'حذف',
     add: '+ إضافة',

@@ -113,7 +113,7 @@ export async function sendChart(
     ].join('\n\n');
 
     const url = buildChartUrl(series, base, target, tf);
-    const keyboard = timeframeKeyboard(base, target, tf);
+    const keyboard = timeframeKeyboard(ctx.lang, base, target, tf);
 
     if (canEdit) {
       try {

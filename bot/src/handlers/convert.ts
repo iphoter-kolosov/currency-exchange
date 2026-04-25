@@ -25,7 +25,7 @@ export function registerConvert(bot: Bot<BotCtx>): void {
     const C = t(ctx.lang).convert;
     await ctx.editMessageText(C.prompt, {
       parse_mode: 'HTML',
-      reply_markup: { inline_keyboard: [[{ text: t(ctx.lang).common.back, callback_data: 'menu:home' }]] },
+      reply_markup: { inline_keyboard: [[{ text: t(ctx.lang).common.askAssistant, callback_data: 'menu:home' }]] },
     });
   });
 }

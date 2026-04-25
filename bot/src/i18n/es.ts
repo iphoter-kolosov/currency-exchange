@@ -14,6 +14,7 @@ export const es: Dict = {
   common: {
     cancel: 'Cancelar',
     back: '← Atrás',
+    askAssistant: '💬 O simplemente pregúntame',
     done: 'Listo',
     delete: 'Eliminar',
     add: '+ Añadir',

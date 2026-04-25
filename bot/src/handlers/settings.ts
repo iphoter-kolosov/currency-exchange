@@ -23,7 +23,7 @@ async function showSettings(ctx: BotCtx, edit: boolean): Promise<void> {
   });
   kb.row()
     .text(`⏰ ${T.timezone}`, 'settings:tz').row()
-    .text(t(ctx.lang).common.back, 'menu:home');
+    .text(t(ctx.lang).common.askAssistant, 'menu:home');
   if (edit) {
     await ctx.editMessageText(text, { parse_mode: 'HTML', reply_markup: kb }).catch(() =>
       ctx.reply(text, { parse_mode: 'HTML', reply_markup: kb })

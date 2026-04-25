@@ -14,6 +14,7 @@ export const ru: Dict = {
   common: {
     cancel: 'Отмена',
     back: '← Назад',
+    askAssistant: '💬 Или просто спроси меня',
     done: 'Готово',
     delete: 'Удалить',
     add: '+ Добавить',

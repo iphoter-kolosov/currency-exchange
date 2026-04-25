@@ -71,7 +71,7 @@ export function registerStart(bot: Bot<BotCtx>): void {
     const me = await ctx.api.getMe();
     await ctx.editMessageText(H.text.replaceAll('{username}', me.username ?? 'bot'), {
       parse_mode: 'HTML',
-      reply_markup: { inline_keyboard: [[{ text: t(ctx.lang).common.back, callback_data: 'menu:home' }]] },
+      reply_markup: { inline_keyboard: [[{ text: t(ctx.lang).common.askAssistant, callback_data: 'menu:home' }]] },
     });
   });
 
