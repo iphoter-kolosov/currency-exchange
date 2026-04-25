@@ -1,6 +1,6 @@
 import { InlineKeyboard, type Bot } from 'grammy';
 import type { BotCtx } from '../bot.ts';
-import { cancelKb } from '../keyboards.ts';
+import { cancelKb, mainMenu } from '../keyboards.ts';
 import { handleConvertText, tryContextFollowUp } from './convert.ts';
 import { handleWatchAdd, handleWatchBase, handleSingleCurrencyAsBase } from './watch.ts';
 import { handleChartPair, sendChart } from './chart.ts';
@@ -155,8 +155,7 @@ async function handleAiFallback(ctx: BotCtx, text: string): Promise<boolean> {
   const intent = await resolveIntent(text, ctx.lang, userId, ctx.user.tz, history);
   if (!intent) {
     const T = t(ctx.lang);
-    const kb = new InlineKeyboard().text(T.start.menu_settings, 'menu:settings');
-    await ctx.reply(T.common.llm_unavailable, { reply_markup: kb });
+    await ctx.reply(T.common.llm_unavailable, { reply_markup: mainMenu(ctx.lang) });
     return true;
   }
   const trace = await runIntent(ctx, intent);

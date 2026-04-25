@@ -125,7 +125,7 @@ export const en: Dict = {
     loading: 'Loading…',
     error: '⚠️ Something went wrong. Try again.',
     unknown_currency: 'Unknown currency: <b>{q}</b>',
-    llm_unavailable: "Didn't catch that — the model may be slow right now. Try rephrasing, or open settings for direct options.",
+    llm_unavailable: "Sorry, I didn't catch that. Try rephrasing, or pick the right tool from the menu below.",
   },
   convert: {
     prompt: 'Send me something like <b>100 usd eur</b> or <b>1000 uah to rub</b>.',

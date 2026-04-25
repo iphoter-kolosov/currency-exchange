@@ -20,7 +20,7 @@ export const es: Dict = {
     loading: 'Cargando…',
     error: '⚠️ Algo salió mal. Inténtalo de nuevo.',
     unknown_currency: 'Divisa desconocida: <b>{q}</b>',
-    llm_unavailable: 'No lo entendí — el modelo puede estar lento. Reformúlalo o abre los ajustes.',
+    llm_unavailable: 'Perdona, no te entendí. Reformúlalo o elige la herramienta adecuada en el menú.',
   },
   convert: {
     prompt: 'Envía algo como <b>100 usd eur</b> o <b>1000 uah a rub</b>.',
