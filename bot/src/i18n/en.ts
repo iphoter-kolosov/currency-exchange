@@ -108,7 +108,7 @@ export type Dict = {
 export const en: Dict = {
   start: {
     greeting:
-      `Hey {name} 👋\n\nI'm your currency assistant: live rates, charts, alerts, and daily digests.\n\n<b>Just write — I'll understand</b>\n• <code>100 usd eur</code> — convert\n• <code>eur</code> — see all your rates vs EUR\n• <code>chart euro to dollar for a year</code>\n• <code>every day at 9am euro to dollar</code>\n\nOr tap a button below 👇`,
+      `Hey {name}! 👋\n\nI'm your personal currency consultant — I live in this ecosystem 24/7: live rates, charts, alerts, and daily digests. I know where the market is heading and I speak your language 🤝\n\nYou can talk to me <b>like a human</b> — just type:\n• <code>100 usd eur</code> — instant conversion\n• <code>eur</code> — every rate vs the euro\n• <code>chart euro to dollar for a year</code>\n• <code>every day at 9am euro to hryvnia</code>\n\nOr use the <b>buttons</b> below — everything's in the menu ⤵️\n\n<i>Built by BigRate.app</i>`,
     menu_convert: '💱 Convert',
     menu_watch: '👁 Watchlist',
     menu_chart: '📈 Chart',

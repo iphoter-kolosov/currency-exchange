@@ -3,7 +3,7 @@ import type { Dict } from './en.ts';
 export const es: Dict = {
   start: {
     greeting:
-      `Hola {name} 👋\n\nSoy tu asistente de divisas: cotizaciones en vivo, gráficos, alertas y resúmenes diarios.\n\n<b>Solo escribe — yo entiendo</b>\n• <code>100 usd eur</code> — convertir\n• <code>eur</code> — todas tus tasas frente al EUR\n• <code>gráfico euro a dólar durante un año</code>\n• <code>todos los días a las 9 euro a dólar</code>\n\nO toca un botón abajo 👇`,
+      `¡Hola {name}! 👋\n\nSoy tu asesor personal de divisas — vivo en este ecosistema 24/7: cotizaciones en vivo, gráficos, alertas y resúmenes diarios. Sé hacia dónde va el mercado y hablo tu idioma 🤝\n\nPuedes hablarme <b>como a una persona</b> — solo escribe:\n• <code>100 usd eur</code> — conversión al instante\n• <code>eur</code> — todas las tasas frente al euro\n• <code>gráfico euro a dólar durante un año</code>\n• <code>todos los días a las 9 euro a dólar</code>\n\nO usa los <b>botones</b> de abajo: todo está en el menú ⤵️\n\n<i>Hecho por BigRate.app</i>`,
     menu_convert: '💱 Convertir',
     menu_watch: '👁 Lista',
     menu_chart: '📈 Gráfico',

@@ -3,7 +3,7 @@ import type { Dict } from './en.ts';
 export const zh: Dict = {
   start: {
     greeting:
-      `你好，{name} 👋\n\n我是你的汇率助手：实时汇率、图表、提醒和每日简报。\n\n<b>直接写，我能听懂</b>\n• <code>100 usd eur</code> — 换算\n• <code>eur</code> — 所有汇率对欧元\n• <code>欧元对美元一年的图表</code>\n• <code>每天早上 9 点 欧元到美元</code>\n\n或者点下面的按钮 👇`,
+      `你好，{name}！👋\n\n我是你的专属汇率顾问 — 24/7 沉浸在这个金融生态里：实时汇率、图表、提醒、每日简报。我懂市场走向，也懂你的语言 🤝\n\n可以<b>像和人聊天一样</b>直接打字：\n• <code>100 usd eur</code> — 立即换算\n• <code>eur</code> — 所有货币对欧元的汇率\n• <code>欧元对美元一年的图表</code>\n• <code>每天早上 9 点 欧元到美元</code>\n\n也可以用下方<b>按钮</b>，一切都在菜单里 ⤵️\n\n<i>由 BigRate.app 出品</i>`,
     menu_convert: '💱 换算',
     menu_watch: '👁 列表',
     menu_chart: '📈 图表',
