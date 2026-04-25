@@ -13,8 +13,6 @@ export const ru: Dict = {
   cannotRemoveBase: 'Нельзя удалить — выбрана как источник',
   settings: 'Настройки',
   language: 'Язык',
-  russian: 'Русский',
-  english: 'English',
   loading: 'Загрузка…',
   updatedAt: 'Обновлено {date}',
   offline: 'Офлайн — показаны сохранённые курсы',

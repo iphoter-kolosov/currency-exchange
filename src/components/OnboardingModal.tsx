@@ -2,7 +2,14 @@ import { useState } from 'react';
 import { useStore } from '../state/store';
 import { en } from '../i18n/en';
 import { ru } from '../i18n/ru';
+import { es } from '../i18n/es';
+import { zh } from '../i18n/zh';
+import { ar } from '../i18n/ar';
+import type { Dict } from '../i18n/en';
 import type { Language } from '../i18n';
+import { LANGUAGES } from '../i18n/languages';
+
+const DICTS: Record<Language, Dict> = { en, ru, es, zh, ar };
 
 export function OnboardingModal() {
   const setLanguage = useStore((s) => s.setLanguage);
@@ -10,8 +17,7 @@ export function OnboardingModal() {
   const currentLang = useStore((s) => s.language);
   const [pick, setPick] = useState<Language>(currentLang);
 
-  const dict = pick === 'ru' ? ru : en;
-  const T = dict.onboarding;
+  const T = DICTS[pick].onboarding;
 
   return (
     <div className="onboarding-backdrop" role="dialog" aria-modal="true">
@@ -25,21 +31,17 @@ export function OnboardingModal() {
         <p className="onboarding-subtitle">{T.subtitle}</p>
 
         <div className="onboarding-section-label">{T.chooseLanguage}</div>
-        <div className="onboarding-lang-row">
-          <button
-            className={`onboarding-lang ${pick === 'en' ? 'is-picked' : ''}`}
-            onClick={() => setPick('en')}
-          >
-            <span className="fi fi-gb" />
-            <span>English</span>
-          </button>
-          <button
-            className={`onboarding-lang ${pick === 'ru' ? 'is-picked' : ''}`}
-            onClick={() => setPick('ru')}
-          >
-            <span className="fi fi-ru" />
-            <span>Русский</span>
-          </button>
+        <div className="onboarding-lang-grid">
+          {LANGUAGES.map((l) => (
+            <button
+              key={l.id}
+              className={`onboarding-lang ${pick === l.id ? 'is-picked' : ''}`}
+              onClick={() => setPick(l.id)}
+            >
+              <span className={`fi fi-${l.flagCode}`} />
+              <span>{l.native}</span>
+            </button>
+          ))}
         </div>
 
         <button

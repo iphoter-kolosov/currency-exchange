@@ -178,6 +178,19 @@ input {
 .menu-item.is-active {
   color: var(--accent);
 }
+.menu-lang {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.menu-lang .fi {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background-size: cover;
+  background-position: center;
+  flex-shrink: 0;
+}
 
 /* Main */
 .main {
@@ -639,7 +652,7 @@ input {
   text-align: left;
 }
 
-.onboarding-lang-row {
+.onboarding-lang-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;

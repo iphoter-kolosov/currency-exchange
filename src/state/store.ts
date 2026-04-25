@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { DEFAULT_SELECTED_CODES } from '../data/currencies';
-import type { Language } from '../i18n';
+import { isSupportedLang, type Language } from '../i18n';
 import type { Timeframe } from '../utils/dates';
 
 type View = 'convert' | 'chart';
@@ -40,8 +40,9 @@ export type AppState = {
 
 function detectLanguage(): Language {
   if (typeof navigator === 'undefined') return 'en';
-  const n = navigator.language || '';
-  return n.toLowerCase().startsWith('ru') ? 'ru' : 'en';
+  const n = (navigator.language || '').toLowerCase();
+  const prefix = n.split('-')[0];
+  return isSupportedLang(prefix) ? prefix : 'en';
 }
 
 export const useStore = create<AppState>()(
@@ -119,6 +120,11 @@ export const useStore = create<AppState>()(
         language: s.language,
         onboarded: s.onboarded,
       }),
+      onRehydrateStorage: () => (state) => {
+        if (state && !isSupportedLang(state.language)) {
+          state.language = 'en';
+        }
+      },
     },
   ),
 );

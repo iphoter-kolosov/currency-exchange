@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useStore } from '../state/store';
 import { useT } from '../i18n';
+import { LANGUAGES } from '../i18n/languages';
 
 type Props = {
   title: string;
@@ -67,24 +68,19 @@ export function TopBar({ title, onAdd }: Props) {
                 </button>
               ) : null}
               <div className="menu-section">{t.language}</div>
-              <button
-                className={`menu-item ${language === 'ru' ? 'is-active' : ''}`}
-                onClick={() => {
-                  setLanguage('ru');
-                  setMenuOpen(false);
-                }}
-              >
-                {t.russian}
-              </button>
-              <button
-                className={`menu-item ${language === 'en' ? 'is-active' : ''}`}
-                onClick={() => {
-                  setLanguage('en');
-                  setMenuOpen(false);
-                }}
-              >
-                {t.english}
-              </button>
+              {LANGUAGES.map((l) => (
+                <button
+                  key={l.id}
+                  className={`menu-item menu-lang ${language === l.id ? 'is-active' : ''}`}
+                  onClick={() => {
+                    setLanguage(l.id);
+                    setMenuOpen(false);
+                  }}
+                >
+                  <span className={`fi fi-${l.flagCode}`} />
+                  <span>{l.native}</span>
+                </button>
+              ))}
             </div>
           </>
         ) : null}
