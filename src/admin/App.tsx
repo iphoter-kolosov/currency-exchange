@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api } from './api';
+import { api, API_BASE } from './api';
 import type { State } from './types';
 import { Dashboard } from './tabs/Dashboard';
 import { Posts } from './tabs/Posts';
@@ -86,7 +86,14 @@ export function App() {
       {error && (
         <div className="error-card">
           <b>Couldn't load admin data.</b>
-          <p style={{ margin: '8px 0 0' }}>{error}</p>
+          <p style={{ margin: '8px 0 0', wordBreak: 'break-all' }}>{error}</p>
+          <p style={{ margin: '8px 0 0', fontSize: 12, opacity: 0.7 }}>
+            API base: <code>{API_BASE}</code>
+          </p>
+          <p style={{ margin: '6px 0 0', fontSize: 12, opacity: 0.7 }}>
+            Override via <code>?api=https://your-deno-url</code> in the URL —
+            saved to localStorage so you only set it once.
+          </p>
           <button className="btn btn-secondary" style={{ marginTop: 8 }} onClick={refresh}>
             Retry
           </button>
