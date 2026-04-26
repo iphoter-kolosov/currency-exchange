@@ -1,4 +1,5 @@
 import type { Bot } from 'grammy';
+import { InlineKeyboard } from 'grammy';
 import type { BotCtx } from '../bot.ts';
 import {
   addBetaTester,
@@ -32,7 +33,18 @@ function adminOnly(ctx: BotCtx): boolean {
   return true;
 }
 
+const ADMIN_PANEL_URL = Deno.env.get('ADMIN_PANEL_URL')
+  ?? 'https://iphoter-kolosov.github.io/currency-exchange/admin.html';
+
 export function registerAdmin(bot: Bot<BotCtx>): void {
+  bot.command('admin', async (ctx) => {
+    if (!adminOnly(ctx)) return;
+    const kb = new InlineKeyboard().webApp('🛠 Open admin panel', ADMIN_PANEL_URL);
+    await ctx.reply(
+      'Admin panel — stats, posting, config, testers.\nOpens as a Telegram Mini App.',
+      { reply_markup: kb },
+    );
+  });
   bot.command('post', async (ctx) => {
     if (!adminOnly(ctx)) return;
     const body = (ctx.match ?? '').toString().trim();

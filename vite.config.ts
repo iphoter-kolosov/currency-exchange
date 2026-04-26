@@ -4,6 +4,14 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
   base: './',
+  build: {
+    rollupOptions: {
+      input: {
+        index: 'index.html',
+        admin: 'admin.html',
+      },
+    },
+  },
   plugins: [
     react(),
     VitePWA({

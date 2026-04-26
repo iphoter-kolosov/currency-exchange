@@ -1,6 +1,7 @@
 import { webhookCallback } from 'grammy';
 import { createBot, setBotCommands } from './bot.ts';
 import { checkAlerts } from './cron.ts';
+import { makeAdminApiHandler } from './admin_api.ts';
 
 const BOT_TOKEN = Deno.env.get('BOT_TOKEN');
 const WEBHOOK_SECRET = Deno.env.get('WEBHOOK_SECRET') ?? 'dev-secret';
@@ -15,6 +16,7 @@ const bot = createBot(BOT_TOKEN);
 const handleUpdate = webhookCallback(bot, 'std/http', {
   secretToken: WEBHOOK_SECRET,
 });
+const handleAdminApi = makeAdminApiHandler(bot, BOT_TOKEN);
 
 try {
   Deno.cron('check-alerts', '*/5 * * * *', async () => {
@@ -44,6 +46,9 @@ async function setupWebhook(publicUrl: string): Promise<Response> {
 
 Deno.serve(async (req) => {
   const url = new URL(req.url);
+
+  const adminResp = await handleAdminApi(req, url);
+  if (adminResp) return adminResp;
 
   if (req.method === 'POST' && url.pathname === '/bot') {
     try {
