@@ -5,6 +5,8 @@ export const ADMIN_USER_ID = 437010992;
 const K_CONFIG_CHANNEL = ['config', 'news_channel_id'] as const;
 const K_CONFIG_GROUP = ['config', 'discussion_group_id'] as const;
 const K_CONFIG_AI_DISABLED = ['config', 'ai_disabled'] as const;
+const K_CONFIG_AI_PUBLIC = ['config', 'ai_public'] as const;
+const K_BETA_TESTER = (userId: number) => ['beta_tester', userId] as const;
 const K_SPONSORED_POST = (channelMsgId: number) => ['sponsored_post', channelMsgId] as const;
 const K_SPONSORED_THREAD = (discussionMsgId: number) => ['sponsored_thread', discussionMsgId] as const;
 const K_AI_THROTTLE = (userId: number) => ['ai_throttle', userId] as const;
@@ -65,6 +67,44 @@ export async function isAiDisabled(): Promise<boolean> {
 export async function setAiDisabled(disabled: boolean): Promise<void> {
   const kv = await getKv();
   await kv.set(K_CONFIG_AI_DISABLED, disabled);
+}
+
+/** Whether the AI cheerleader reacts to all users (true) or only beta
+ * testers (false). Defaults to false — safe-by-default so a fresh deploy
+ * never dumps AI reactions on real users until you explicitly flip it. */
+export async function isAiPublic(): Promise<boolean> {
+  const kv = await getKv();
+  const e = await kv.get<boolean>(K_CONFIG_AI_PUBLIC);
+  return e.value === true;
+}
+
+export async function setAiPublic(pub: boolean): Promise<void> {
+  const kv = await getKv();
+  await kv.set(K_CONFIG_AI_PUBLIC, pub);
+}
+
+export async function isBetaTester(userId: number): Promise<boolean> {
+  if (userId === ADMIN_USER_ID) return true;
+  const kv = await getKv();
+  const e = await kv.get<boolean>(K_BETA_TESTER(userId));
+  return e.value === true;
+}
+
+export async function addBetaTester(userId: number): Promise<void> {
+  const kv = await getKv();
+  await kv.set(K_BETA_TESTER(userId), true);
+}
+
+export async function removeBetaTester(userId: number): Promise<void> {
+  const kv = await getKv();
+  await kv.delete(K_BETA_TESTER(userId));
+}
+
+export async function* iterateBetaTesters(): AsyncGenerator<number> {
+  const kv = await getKv();
+  for await (const entry of kv.list<boolean>({ prefix: ['beta_tester'] })) {
+    yield entry.key[1] as number;
+  }
 }
 
 export async function markSponsoredPost(channelMsgId: number, sponsor: string): Promise<void> {

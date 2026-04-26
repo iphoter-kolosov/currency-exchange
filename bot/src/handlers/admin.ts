@@ -1,13 +1,18 @@
 import type { Bot } from 'grammy';
 import type { BotCtx } from '../bot.ts';
 import {
+  addBetaTester,
   getDiscussionGroupId,
   getNewsChannelId,
   isAdmin,
   isAiDisabled,
+  isAiPublic,
+  iterateBetaTesters,
   iterateReferralCounts,
   markSponsoredPost,
+  removeBetaTester,
   setAiDisabled,
+  setAiPublic,
   setDiscussionGroupId,
   setNewsChannelId,
 } from '../services/news.ts';
@@ -151,11 +156,16 @@ export function registerAdmin(bot: Bot<BotCtx>): void {
     const channelId = await getNewsChannelId();
     const groupId = await getDiscussionGroupId();
     const aiOff = await isAiDisabled();
+    const aiPub = await isAiPublic();
+    let testerCount = 0;
+    for await (const _ of iterateBetaTesters()) testerCount++;
     const lines = [
       '<b>News config</b>',
       `📰 Channel: ${channelId ?? '<i>not set</i>'}`,
       `💬 Discussion group: ${groupId ?? '<i>not set</i>'}`,
-      `🤖 AI cheerleader: ${aiOff ? '🔴 OFF' : '🟢 ON'}`,
+      `🤖 AI cheerleader: ${aiOff ? '🔴 OFF (kill switch)' : '🟢 ON'}`,
+      `👥 Audience: ${aiPub ? '🌍 public (everyone)' : '🧪 beta only'}`,
+      `🧬 Beta testers: ${testerCount} (admin always counts)`,
     ];
     await ctx.reply(lines.join('\n'), { parse_mode: 'HTML' });
   });
@@ -165,6 +175,54 @@ export function registerAdmin(bot: Bot<BotCtx>): void {
     const current = await isAiDisabled();
     await setAiDisabled(!current);
     await ctx.reply(`AI cheerleader: ${!current ? '🔴 OFF' : '🟢 ON'}`);
+  });
+
+  bot.command('aipublic', async (ctx) => {
+    if (!adminOnly(ctx)) return;
+    const current = await isAiPublic();
+    await setAiPublic(!current);
+    await ctx.reply(
+      !current
+        ? '🌍 AI cheerleader is now PUBLIC — reacting to everyone in the discussion group.'
+        : '🧪 AI cheerleader is now BETA-ONLY — reacting only to admin + /testers.',
+    );
+  });
+
+  bot.command('addtester', async (ctx) => {
+    if (!adminOnly(ctx)) return;
+    const arg = (ctx.match ?? '').toString().trim();
+    const id = Number(arg);
+    if (!Number.isFinite(id) || id <= 0) {
+      await ctx.reply('Usage: <code>/addtester &lt;user_id&gt;</code>', { parse_mode: 'HTML' });
+      return;
+    }
+    await addBetaTester(id);
+    await ctx.reply(`Added <code>${id}</code> as beta tester.`, { parse_mode: 'HTML' });
+  });
+
+  bot.command('removetester', async (ctx) => {
+    if (!adminOnly(ctx)) return;
+    const arg = (ctx.match ?? '').toString().trim();
+    const id = Number(arg);
+    if (!Number.isFinite(id) || id <= 0) {
+      await ctx.reply('Usage: <code>/removetester &lt;user_id&gt;</code>', { parse_mode: 'HTML' });
+      return;
+    }
+    await removeBetaTester(id);
+    await ctx.reply(`Removed <code>${id}</code> from beta testers.`, { parse_mode: 'HTML' });
+  });
+
+  bot.command('testers', async (ctx) => {
+    if (!adminOnly(ctx)) return;
+    const ids: number[] = [];
+    for await (const id of iterateBetaTesters()) ids.push(id);
+    if (ids.length === 0) {
+      await ctx.reply('No beta testers registered. Admin always counts as one.');
+      return;
+    }
+    const lines = ['<b>Beta testers</b> (admin counts implicitly)'];
+    for (const id of ids) lines.push(`• <code>${id}</code>`);
+    await ctx.reply(lines.join('\n'), { parse_mode: 'HTML' });
   });
 
   bot.command('refs', async (ctx) => {

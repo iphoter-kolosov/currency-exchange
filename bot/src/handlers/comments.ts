@@ -4,6 +4,8 @@ import {
   getDiscussionGroupId,
   getSponsoredPost,
   isAiDisabled,
+  isAiPublic,
+  isBetaTester,
   isSponsoredThread,
   markSponsoredThread,
   tryAcquireGlobalRate,
@@ -46,6 +48,13 @@ export function registerComments(bot: Bot<BotCtx>): void {
 
     const userId = ctx.from?.id;
     if (!userId) return;
+
+    // Beta gate: until cheerleader_public is flipped on, react only to
+    // beta testers. Lets the admin and a second account rehearse the
+    // whole flow in the real group while ordinary members see nothing.
+    if (!(await isAiPublic())) {
+      if (!(await isBetaTester(userId))) return;
+    }
 
     if (!tryAcquireGlobalRate()) return;
     if (!(await tryAcquireUserThrottle(userId))) return;

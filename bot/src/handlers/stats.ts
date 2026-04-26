@@ -7,6 +7,8 @@ import {
   getNewsChannelId,
   isAdmin,
   isAiDisabled,
+  isAiPublic,
+  iterateBetaTesters,
   iterateReferralCounts,
 } from '../services/news.ts';
 
@@ -53,6 +55,9 @@ export function registerStats(bot: Bot<BotCtx>): void {
     const channelId = await getNewsChannelId();
     const groupId = await getDiscussionGroupId();
     const aiOff = await isAiDisabled();
+    const aiPub = await isAiPublic();
+    let testerCount = 0;
+    for await (const _ of iterateBetaTesters()) testerCount++;
 
     const langLine = Object.entries(langs)
       .sort(([, a], [, b]) => b - a)
@@ -74,6 +79,7 @@ export function registerStats(bot: Bot<BotCtx>): void {
       `📰 Channel: ${channelId ?? '<i>not set</i>'}`,
       `💬 Group: ${groupId ?? '<i>not set</i>'}`,
       `🤖 AI cheerleader: ${aiOff ? '🔴 OFF' : '🟢 ON'}`,
+      `👥 Audience: ${aiPub ? '🌍 public' : '🧪 beta only'} · ${testerCount} tester(s)`,
     ];
 
     await ctx.reply(lines.join('\n'), { parse_mode: 'HTML' });
