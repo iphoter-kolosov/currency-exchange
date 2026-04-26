@@ -1,9 +1,12 @@
 import { getKv } from './storage.ts';
+import { SUPPORTED_LANGS, type SupportedLang } from '../i18n/index.ts';
 
 export const ADMIN_USER_ID = 437010992;
 
 const K_CONFIG_CHANNEL = ['config', 'news_channel_id'] as const;
 const K_CONFIG_GROUP = ['config', 'discussion_group_id'] as const;
+const K_LANG_CHANNEL = (lang: SupportedLang) => ['config', 'news_channel', lang] as const;
+const K_LANG_GROUP = (lang: SupportedLang) => ['config', 'discussion_group', lang] as const;
 const K_CONFIG_AI_DISABLED = ['config', 'ai_disabled'] as const;
 const K_CONFIG_AI_PUBLIC = ['config', 'ai_public'] as const;
 const K_BETA_TESTER = (userId: number) => ['beta_tester', userId] as const;
@@ -24,38 +27,101 @@ export type SponsoredPost = {
   postedAt: number;
 };
 
-export async function getNewsChannelId(): Promise<number | null> {
+/** Per-language news channel id. Falls back to the legacy single-channel
+ * setting for the 'en' slot so a config that pre-dates multi-language
+ * keeps working without any manual migration. */
+export async function getLangChannelId(lang: SupportedLang): Promise<number | null> {
   const kv = await getKv();
-  const fromKv = await kv.get<number>(K_CONFIG_CHANNEL);
-  if (fromKv.value !== null) return fromKv.value;
-  const fromEnv = Deno.env.get('NEWS_CHANNEL_ID');
-  if (fromEnv) {
-    const n = Number(fromEnv);
-    if (Number.isFinite(n)) return n;
+  const e = await kv.get<number>(K_LANG_CHANNEL(lang));
+  if (e.value !== null) return e.value;
+  if (lang === 'en') {
+    const legacy = await kv.get<number>(K_CONFIG_CHANNEL);
+    if (legacy.value !== null) return legacy.value;
+    const fromEnv = Deno.env.get('NEWS_CHANNEL_ID');
+    if (fromEnv) {
+      const n = Number(fromEnv);
+      if (Number.isFinite(n)) return n;
+    }
   }
   return null;
+}
+
+export async function setLangChannelId(lang: SupportedLang, id: number | null): Promise<void> {
+  const kv = await getKv();
+  if (id === null) {
+    await kv.delete(K_LANG_CHANNEL(lang));
+  } else {
+    await kv.set(K_LANG_CHANNEL(lang), id);
+  }
+}
+
+export async function getLangGroupId(lang: SupportedLang): Promise<number | null> {
+  const kv = await getKv();
+  const e = await kv.get<number>(K_LANG_GROUP(lang));
+  if (e.value !== null) return e.value;
+  if (lang === 'en') {
+    const legacy = await kv.get<number>(K_CONFIG_GROUP);
+    if (legacy.value !== null) return legacy.value;
+    const fromEnv = Deno.env.get('DISCUSSION_GROUP_ID');
+    if (fromEnv) {
+      const n = Number(fromEnv);
+      if (Number.isFinite(n)) return n;
+    }
+  }
+  return null;
+}
+
+export async function setLangGroupId(lang: SupportedLang, id: number | null): Promise<void> {
+  const kv = await getKv();
+  if (id === null) {
+    await kv.delete(K_LANG_GROUP(lang));
+  } else {
+    await kv.set(K_LANG_GROUP(lang), id);
+  }
+}
+
+export async function getAllLangChannels(): Promise<Record<SupportedLang, number | null>> {
+  const out = {} as Record<SupportedLang, number | null>;
+  for (const lang of SUPPORTED_LANGS) {
+    out[lang] = await getLangChannelId(lang);
+  }
+  return out;
+}
+
+export async function getAllLangGroups(): Promise<Record<SupportedLang, number | null>> {
+  const out = {} as Record<SupportedLang, number | null>;
+  for (const lang of SUPPORTED_LANGS) {
+    out[lang] = await getLangGroupId(lang);
+  }
+  return out;
+}
+
+/** Reverse lookup: which language does this discussion group belong to?
+ * Used by the AI cheerleader to pick the right reply language. */
+export async function getLangForGroupId(chatId: number): Promise<SupportedLang | null> {
+  for (const lang of SUPPORTED_LANGS) {
+    const id = await getLangGroupId(lang);
+    if (id === chatId) return lang;
+  }
+  return null;
+}
+
+/** Legacy single-channel getter, kept so older command paths still work.
+ * Defaults to the 'en' slot. */
+export async function getNewsChannelId(): Promise<number | null> {
+  return await getLangChannelId('en');
 }
 
 export async function getDiscussionGroupId(): Promise<number | null> {
-  const kv = await getKv();
-  const fromKv = await kv.get<number>(K_CONFIG_GROUP);
-  if (fromKv.value !== null) return fromKv.value;
-  const fromEnv = Deno.env.get('DISCUSSION_GROUP_ID');
-  if (fromEnv) {
-    const n = Number(fromEnv);
-    if (Number.isFinite(n)) return n;
-  }
-  return null;
+  return await getLangGroupId('en');
 }
 
 export async function setNewsChannelId(id: number): Promise<void> {
-  const kv = await getKv();
-  await kv.set(K_CONFIG_CHANNEL, id);
+  await setLangChannelId('en', id);
 }
 
 export async function setDiscussionGroupId(id: number): Promise<void> {
-  const kv = await getKv();
-  await kv.set(K_CONFIG_GROUP, id);
+  await setLangGroupId('en', id);
 }
 
 export async function isAiDisabled(): Promise<boolean> {

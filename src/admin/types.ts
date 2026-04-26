@@ -1,3 +1,5 @@
+import type { SupportedLang } from './i18nMeta';
+
 export type State = {
   stats: {
     users: {
@@ -16,13 +18,15 @@ export type State = {
     };
   };
   config: {
-    channelId: number | null;
-    groupId: number | null;
+    channels: Record<SupportedLang, number | null>;
+    groups: Record<SupportedLang, number | null>;
     aiOn: boolean;
     aiPublic: boolean;
     testers: number[];
   };
 };
+
+export type PostResult = { lang: string; ok: boolean; messageId?: number; error?: string };
 
 declare global {
   interface Window {

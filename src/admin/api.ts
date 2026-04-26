@@ -60,22 +60,25 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
   return data as T;
 }
 
+import type { PostResult } from './types';
+import type { SupportedLang } from './i18nMeta';
+
 export const api = {
   state: () => call<State>('state'),
-  post: (body: string) =>
-    call<{ messageId: number }>('post', {
+  post: (posts: { lang: SupportedLang; body: string }[], sponsor?: string) =>
+    call<{ results: PostResult[] }>('post', {
       method: 'POST',
-      body: JSON.stringify({ body }),
+      body: JSON.stringify({ posts, sponsor }),
     }),
-  postSponsored: (sponsor: string, body: string) =>
-    call<{ messageId: number }>('postsponsored', {
+  translate: (from: SupportedLang, body: string, to: SupportedLang[]) =>
+    call<{ translations: Record<string, string | null> }>('translate', {
       method: 'POST',
-      body: JSON.stringify({ sponsor, body }),
+      body: JSON.stringify({ from, body, to }),
     }),
-  setChannel: (id: number) =>
-    call<{ ok: true }>('setchannel', { method: 'POST', body: JSON.stringify({ id }) }),
-  setGroup: (id: number) =>
-    call<{ ok: true }>('setgroup', { method: 'POST', body: JSON.stringify({ id }) }),
+  setChannel: (lang: SupportedLang, id: number | null) =>
+    call<{ ok: true }>('setchannel', { method: 'POST', body: JSON.stringify({ lang, id }) }),
+  setGroup: (lang: SupportedLang, id: number | null) =>
+    call<{ ok: true }>('setgroup', { method: 'POST', body: JSON.stringify({ lang, id }) }),
   aiToggle: () => call<{ aiOn: boolean }>('aitoggle', { method: 'POST' }),
   aiPublic: () => call<{ aiPublic: boolean }>('aipublic', { method: 'POST' }),
   addTester: (userId: number) =>

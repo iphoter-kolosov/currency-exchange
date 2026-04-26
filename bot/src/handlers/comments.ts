@@ -1,7 +1,7 @@
 import type { Bot } from 'grammy';
 import type { BotCtx } from '../bot.ts';
 import {
-  getDiscussionGroupId,
+  getLangForGroupId,
   getSponsoredPost,
   isAiDisabled,
   isAiPublic,
@@ -12,15 +12,13 @@ import {
   tryAcquireUserThrottle,
 } from '../services/news.ts';
 import { reactToComment } from '../services/cheerleader.ts';
-import { detectLang } from '../i18n/index.ts';
 
 export function registerComments(bot: Bot<BotCtx>): void {
   bot.on('message', async (ctx, next) => {
     const chatId = ctx.chat?.id;
-    const groupId = await getDiscussionGroupId();
-    if (!groupId || chatId !== groupId) {
-      return next();
-    }
+    if (!chatId) return next();
+    const groupLang = await getLangForGroupId(chatId);
+    if (!groupLang) return next();
 
     if (ctx.from?.is_bot) return;
 
@@ -59,8 +57,10 @@ export function registerComments(bot: Bot<BotCtx>): void {
     if (!tryAcquireGlobalRate()) return;
     if (!(await tryAcquireUserThrottle(userId))) return;
 
-    const userLang = detectLang(ctx.from?.language_code);
-    const reaction = await reactToComment(text, userLang);
+    // The group's configured language wins over the commenter's profile —
+    // a Russian channel deserves Russian replies even if a tester writes
+    // in English by accident.
+    const reaction = await reactToComment(text, groupLang);
     if (!reaction) return;
 
     await ctx.api.sendMessage(chatId, reaction, {

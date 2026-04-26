@@ -1,4 +1,5 @@
 import type { State } from '../types';
+import { LANGUAGES } from '../i18nMeta';
 
 type Props = {
   state: State;
@@ -14,6 +15,8 @@ export function Dashboard({ state, onRefresh }: Props) {
   const onboardedPct = stats.users.total > 0
     ? Math.round((stats.users.onboarded / stats.users.total) * 100)
     : 0;
+  const channelsConfigured = LANGUAGES.filter((l) => config.channels[l.id] !== null).length;
+  const groupsConfigured = LANGUAGES.filter((l) => config.groups[l.id] !== null).length;
 
   return (
     <>
@@ -69,14 +72,31 @@ export function Dashboard({ state, onRefresh }: Props) {
       <div className="card">
         <div className="card-title">News pipeline</div>
         <div className="kv-grid">
-          <span className="k">Channel</span>
-          <span className="v">{config.channelId ?? '—'}</span>
-          <span className="k">Discussion group</span>
-          <span className="v">{config.groupId ?? '—'}</span>
+          <span className="k">Channels configured</span>
+          <span className="v">{channelsConfigured} / {LANGUAGES.length}</span>
+          <span className="k">Groups configured</span>
+          <span className="v">{groupsConfigured} / {LANGUAGES.length}</span>
           <span className="k">AI cheerleader</span>
           <span className="v">{config.aiOn ? '🟢 ON' : '🔴 OFF'}</span>
           <span className="k">Audience</span>
           <span className="v">{config.aiPublic ? '🌍 public' : '🧪 beta only'}</span>
+        </div>
+        <div className="list" style={{ marginTop: 12 }}>
+          {LANGUAGES.map((lang) => {
+            const ch = config.channels[lang.id];
+            const gr = config.groups[lang.id];
+            const status = ch && gr ? '🟢' : ch || gr ? '🟡' : '⚪';
+            return (
+              <div className="list-item" key={lang.id}>
+                <span>
+                  {status} {lang.flag} {lang.native}
+                </span>
+                <span className="v">
+                  ch: {ch ?? '—'} · gr: {gr ?? '—'}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
 

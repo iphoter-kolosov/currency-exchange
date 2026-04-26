@@ -3,8 +3,9 @@ import type { BotCtx } from './bot.ts';
 import {
   ADMIN_USER_ID,
   addBetaTester,
-  getDiscussionGroupId,
-  getNewsChannelId,
+  getAllLangChannels,
+  getAllLangGroups,
+  getLangChannelId,
   isAiDisabled,
   isAiPublic,
   iterateBetaTesters,
@@ -13,10 +14,12 @@ import {
   removeBetaTester,
   setAiDisabled,
   setAiPublic,
-  setDiscussionGroupId,
-  setNewsChannelId,
+  setLangChannelId,
+  setLangGroupId,
 } from './services/news.ts';
 import { iterateAllAlerts, iterateAllUsers } from './services/storage.ts';
+import { isSupportedLang, languageName, type SupportedLang } from './i18n/index.ts';
+import { withLlmSemaphore } from './services/queue.ts';
 
 const enc = new TextEncoder();
 
@@ -149,19 +152,61 @@ async function gatherStats() {
 }
 
 async function gatherConfig() {
-  const channelId = await getNewsChannelId();
-  const groupId = await getDiscussionGroupId();
-  const aiOff = await isAiDisabled();
-  const aiPub = await isAiPublic();
+  const [channels, groups, aiOff, aiPub] = await Promise.all([
+    getAllLangChannels(),
+    getAllLangGroups(),
+    isAiDisabled(),
+    isAiPublic(),
+  ]);
   const testers: number[] = [];
   for await (const id of iterateBetaTesters()) testers.push(id);
   return {
-    channelId,
-    groupId,
+    channels,
+    groups,
     aiOn: !aiOff,
     aiPublic: aiPub,
     testers,
   };
+}
+
+const POLLINATIONS_URL = 'https://text.pollinations.ai/';
+
+async function translateOnce(body: string, fromLang: SupportedLang, toLang: SupportedLang): Promise<string | null> {
+  if (fromLang === toLang) return body;
+  const sys =
+    `You are translating Telegram channel posts. Translate the following text from ${
+      languageName(fromLang)
+    } to ${
+      languageName(toLang)
+    }. Preserve every Telegram HTML tag exactly (<b>, <i>, <a href>, <code>, <blockquote>, etc.). Preserve emojis and links. Keep the tone and intent. Output ONLY the translated text — no preface, no quotes, no explanation.`;
+  return await withLlmSemaphore(async () => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 12_000);
+    try {
+      const res = await fetch(POLLINATIONS_URL, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          messages: [
+            { role: 'system', content: sys },
+            { role: 'user', content: body.slice(0, 4000) },
+          ],
+          model: 'openai',
+        }),
+        signal: ctrl.signal,
+      });
+      if (!res.ok) return null;
+      const text = (await res.text()).trim();
+      return text
+        .replace(/^["“”'`]+|["“”'`]+$/g, '')
+        .trim();
+    } catch (e) {
+      console.warn(`translate ${fromLang}→${toLang} failed:`, e instanceof Error ? e.message : e);
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  });
 }
 
 export function makeAdminApiHandler(bot: Bot<BotCtx>, botToken: string) {
@@ -187,50 +232,89 @@ export function makeAdminApiHandler(bot: Bot<BotCtx>, botToken: string) {
       }
 
       if (path === 'post' && req.method === 'POST') {
-        const body = await req.json() as { body?: string };
-        if (!body.body || typeof body.body !== 'string') {
-          return json({ error: 'body required' }, 400);
+        const body = await req.json() as {
+          posts?: { lang?: string; body?: string }[];
+          sponsor?: string;
+        };
+        const sponsorLabel = typeof body.sponsor === 'string' ? body.sponsor.trim() : '';
+        if (!Array.isArray(body.posts) || body.posts.length === 0) {
+          return json({ error: 'posts[] required' }, 400);
         }
-        const channelId = await getNewsChannelId();
-        if (!channelId) return json({ error: 'channel not configured' }, 400);
-        const sent = await bot.api.sendMessage(channelId, body.body, {
-          parse_mode: 'HTML',
-          link_preview_options: { is_disabled: false },
-        });
-        return json({ messageId: sent.message_id });
+        const escapedSponsor = sponsorLabel
+          ? sponsorLabel
+              .replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;')
+          : '';
+
+        const results: { lang: string; ok: boolean; messageId?: number; error?: string }[] = [];
+        for (const item of body.posts) {
+          const lang = item.lang;
+          const text = item.body;
+          if (!lang || !isSupportedLang(lang) || !text || typeof text !== 'string') {
+            results.push({ lang: String(lang ?? '?'), ok: false, error: 'invalid input' });
+            continue;
+          }
+          const channelId = await getLangChannelId(lang);
+          if (!channelId) {
+            results.push({ lang, ok: false, error: 'channel not configured' });
+            continue;
+          }
+          const composed = sponsorLabel
+            ? `📢 <b>Sponsored</b> · ${escapedSponsor}\n\n${text}`
+            : text;
+          try {
+            const sent = await bot.api.sendMessage(channelId, composed, {
+              parse_mode: 'HTML',
+              link_preview_options: { is_disabled: false },
+            });
+            if (sponsorLabel) {
+              await markSponsoredPost(sent.message_id, sponsorLabel);
+            }
+            results.push({ lang, ok: true, messageId: sent.message_id });
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            results.push({ lang, ok: false, error: msg });
+          }
+        }
+        return json({ results });
       }
 
-      if (path === 'postsponsored' && req.method === 'POST') {
-        const body = await req.json() as { sponsor?: string; body?: string };
-        if (!body.sponsor || !body.body) {
-          return json({ error: 'sponsor and body required' }, 400);
+      if (path === 'translate' && req.method === 'POST') {
+        const body = await req.json() as { from?: string; body?: string; to?: string[] };
+        if (
+          !body.from || !isSupportedLang(body.from) ||
+          !body.body || typeof body.body !== 'string' ||
+          !Array.isArray(body.to) || body.to.length === 0
+        ) {
+          return json({ error: 'from, body, and to[] required' }, 400);
         }
-        const channelId = await getNewsChannelId();
-        if (!channelId) return json({ error: 'channel not configured' }, 400);
-        const escaped = body.sponsor
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;');
-        const composed = `📢 <b>Партнёрский материал</b> · ${escaped}\n\n${body.body}`;
-        const sent = await bot.api.sendMessage(channelId, composed, {
-          parse_mode: 'HTML',
-          link_preview_options: { is_disabled: false },
-        });
-        await markSponsoredPost(sent.message_id, body.sponsor);
-        return json({ messageId: sent.message_id });
+        const fromLang = body.from;
+        const targets = body.to.filter((l): l is SupportedLang => isSupportedLang(l));
+        const out: Record<string, string | null> = {};
+        await Promise.all(
+          targets.map(async (toLang) => {
+            out[toLang] = await translateOnce(body.body as string, fromLang, toLang);
+          }),
+        );
+        return json({ translations: out });
       }
 
       if (path === 'setchannel' && req.method === 'POST') {
-        const body = await req.json() as { id?: number };
-        if (!Number.isFinite(body.id)) return json({ error: 'id required' }, 400);
-        await setNewsChannelId(body.id as number);
+        const body = await req.json() as { lang?: string; id?: number | null };
+        if (!body.lang || !isSupportedLang(body.lang)) return json({ error: 'lang required' }, 400);
+        const id = body.id;
+        if (id !== null && !Number.isFinite(id)) return json({ error: 'id must be number or null' }, 400);
+        await setLangChannelId(body.lang, id ?? null);
         return json({ ok: true });
       }
 
       if (path === 'setgroup' && req.method === 'POST') {
-        const body = await req.json() as { id?: number };
-        if (!Number.isFinite(body.id)) return json({ error: 'id required' }, 400);
-        await setDiscussionGroupId(body.id as number);
+        const body = await req.json() as { lang?: string; id?: number | null };
+        if (!body.lang || !isSupportedLang(body.lang)) return json({ error: 'lang required' }, 400);
+        const id = body.id;
+        if (id !== null && !Number.isFinite(id)) return json({ error: 'id must be number or null' }, 400);
+        await setLangGroupId(body.lang, id ?? null);
         return json({ ok: true });
       }
 
