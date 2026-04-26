@@ -1,6 +1,6 @@
 import type { State } from './types';
 
-const DEFAULT_API_BASE = 'https://currency-exchange.iphoter-kolosov.deno.dev';
+const DEFAULT_API_BASE = 'https://currency-exchange.iphoter-kolosov.deno.net';
 
 function readApiBase(): string {
   // Allow override via ?api=https://… so we can change endpoint without re-deploying.
