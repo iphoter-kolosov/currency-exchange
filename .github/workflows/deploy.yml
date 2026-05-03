@@ -30,7 +30,15 @@ jobs:
 
       - run: npm ci
 
-      - run: npm run build
+      - name: Build (staging URL until bigrate.app DNS is live)
+        env:
+          # Remove this whole `env:` block when going live on bigrate.app —
+          # the build will then fall back to the bigrate.app default in
+          # scripts/pair-page-template.mjs and emit canonical/sitemap URLs
+          # under the production domain.
+          SITE_BASE: 'https://iphoter-kolosov.github.io/currency-exchange'
+          BOT_USERNAME: 'bigrate_exchange_bot'
+        run: npm run build
 
       - uses: actions/configure-pages@v5
         with:

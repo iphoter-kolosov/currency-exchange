@@ -1,7 +1,10 @@
 import { CURRENCY_BY_CODE, MAJORS } from './pair-data.mjs';
 
 const BOT_USERNAME = process.env.BOT_USERNAME || 'bigrate_exchange_bot';
-const SITE_BASE = process.env.SITE_BASE || 'https://iphoter-kolosov.github.io/currency-exchange';
+// Default targets the production domain. CI overrides this with the GH
+// Pages staging URL until DNS for bigrate.app is configured. To go live:
+// drop the env override in deploy.yml and add public/CNAME with bigrate.app.
+const SITE_BASE = process.env.SITE_BASE || 'https://bigrate.app';
 
 function fmtRate(r, decimals = 4) {
   if (!isFinite(r)) return '—';

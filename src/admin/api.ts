@@ -1,5 +1,7 @@
 import type { State } from './types';
 
+// API stays on Deno Deploy regardless of where the static frontend is served
+// (GH Pages staging or bigrate.app). The backend domain doesn't migrate.
 const DEFAULT_API_BASE = 'https://currency-exchange.iphoter-kolosov.deno.net';
 
 function readApiBase(): string {

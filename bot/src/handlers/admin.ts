@@ -33,8 +33,10 @@ function adminOnly(ctx: BotCtx): boolean {
   return true;
 }
 
+// Default points at the production domain. While DNS isn't live yet, set
+// ADMIN_PANEL_URL env var on Deno Deploy to the GH Pages staging URL.
 const ADMIN_PANEL_URL = Deno.env.get('ADMIN_PANEL_URL')
-  ?? 'https://iphoter-kolosov.github.io/currency-exchange/admin.html';
+  ?? 'https://bigrate.app/admin.html';
 
 export function registerAdmin(bot: Bot<BotCtx>): void {
   bot.command('admin', async (ctx) => {
