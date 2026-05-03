@@ -1,6 +1,6 @@
 import { CURRENCY_BY_CODE, MAJORS } from './pair-data.mjs';
 
-const BOT_USERNAME = process.env.BOT_USERNAME || 'bigratebot';
+const BOT_USERNAME = process.env.BOT_USERNAME || 'bigrate_exchange_bot';
 const SITE_BASE = process.env.SITE_BASE || 'https://iphoter-kolosov.github.io/currency-exchange';
 
 function fmtRate(r, decimals = 4) {
