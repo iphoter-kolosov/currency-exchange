@@ -44,7 +44,12 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,webmanifest}'],
+        // Don't precache the SEO pair pages (1800+ files / ~23 MB) or the
+        // admin Mini App — both have their own update lifecycle and the
+        // calculator's SW shouldn't try to manage them.
+        globIgnores: ['pair/**/*', 'admin.html', 'sitemap.xml', 'robots.txt'],
         navigateFallback: 'index.html',
+        navigateFallbackDenylist: [/^\/currency-exchange\/pair\//, /^\/currency-exchange\/admin\.html$/],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/cdn\.jsdelivr\.net\/.*$/,

@@ -3,6 +3,9 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main, claude/currency-calculator-app-AoLgX]
+  schedule:
+    # Daily rebuild so the SEO pair-page rate snapshots stay fresh.
+    - cron: '0 5 * * *'
   workflow_dispatch:
 
 permissions:
