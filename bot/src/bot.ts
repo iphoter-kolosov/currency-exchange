@@ -1,5 +1,5 @@
-import { Bot, Context, GrammyError, HttpError, session, type SessionFlavor } from 'grammy';
-import { getUser, updateUser, type Lang, type UserPrefs } from './services/storage.ts';
+import { Bot, Context, GrammyError, HttpError, session, type SessionFlavor, type StorageAdapter } from 'grammy';
+import { getKv, getUser, updateUser, type Lang, type UserPrefs } from './services/storage.ts';
 import { detectLang, isSupportedLang, t, tpl } from './i18n/index.ts';
 import { explainError } from './services/ai.ts';
 import { mainMenu } from './keyboards.ts';
@@ -50,11 +50,30 @@ function alreadyHandled(updateId: number): boolean {
   return false;
 }
 
+function kvSessionStorage<T>(): StorageAdapter<T> {
+  return {
+    async read(key) {
+      const kv = await getKv();
+      const entry = await kv.get<T>(['session', key]);
+      return entry.value ?? undefined;
+    },
+    async write(key, value) {
+      const kv = await getKv();
+      await kv.set(['session', key], value, { expireIn: 24 * 60 * 60 * 1000 });
+    },
+    async delete(key) {
+      const kv = await getKv();
+      await kv.delete(['session', key]);
+    },
+  };
+}
+
 export function createBot(token: string): Bot<BotCtx> {
   const bot = new Bot<BotCtx>(token);
 
   bot.use(session<SessionData, BotCtx>({
     initial: () => ({}),
+    storage: kvSessionStorage(),
   }));
 
   // Dedupe retries: Telegram resends the same update_id if a webhook
