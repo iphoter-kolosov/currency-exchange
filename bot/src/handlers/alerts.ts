@@ -19,6 +19,19 @@ import { replyError, withTyping } from './_error.ts';
 
 export const FREE_ALERT_LIMIT = 5;
 
+function extractPairTokens(text: string): [string, string] | null {
+  const tokens = text.trim().toLowerCase().split(/[\s/,_-]+/);
+  const found: string[] = [];
+  for (const tok of tokens) {
+    if (!tok) continue;
+    if (findCurrency(tok)) {
+      found.push(tok);
+      if (found.length === 2) return [found[0], found[1]];
+    }
+  }
+  return null;
+}
+
 function pad2(n: number): string {
   return n.toString().padStart(2, '0');
 }
@@ -217,16 +230,16 @@ async function finalizeDigest(
 export async function handleDigestPair(ctx: BotCtx, text: string): Promise<boolean> {
   if (ctx.session.mode?.type !== 'digest:pair') return false;
   try {
-    const parts = text.trim().toLowerCase().split(/\s+/);
-    if (parts.length < 2) {
+    const pair = extractPairTokens(text);
+    if (!pair) {
       await ctx.reply(t(ctx.lang).digest.pick_pair, {
         parse_mode: 'HTML',
         reply_markup: cancelKb(ctx.lang),
       });
       return true;
     }
-    const base = findCurrency(parts[0]);
-    const target = findCurrency(parts[1]);
+    const base = findCurrency(pair[0]);
+    const target = findCurrency(pair[1]);
     if (!base || !target) {
       await ctx.reply(tpl(t(ctx.lang).common.unknown_currency, { q: text }), {
         parse_mode: 'HTML',
@@ -284,16 +297,16 @@ export async function handleDigestTime(ctx: BotCtx, text: string): Promise<boole
 export async function handleAlertsPair(ctx: BotCtx, text: string): Promise<boolean> {
   if (ctx.session.mode?.type !== 'alerts:pair') return false;
   try {
-    const parts = text.trim().toLowerCase().split(/\s+/);
-    if (parts.length < 2) {
+    const pair = extractPairTokens(text);
+    if (!pair) {
       await ctx.reply(t(ctx.lang).alerts.pick_pair, {
         parse_mode: 'HTML',
         reply_markup: cancelKb(ctx.lang),
       });
       return true;
     }
-    const base = findCurrency(parts[0]);
-    const target = findCurrency(parts[1]);
+    const base = findCurrency(pair[0]);
+    const target = findCurrency(pair[1]);
     if (!base || !target) {
       await ctx.reply(tpl(t(ctx.lang).common.unknown_currency, { q: text }), {
         parse_mode: 'HTML',
