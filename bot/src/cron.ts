@@ -160,6 +160,13 @@ async function tryFireDailyDigest(bot: Bot<BotCtx>, alert: Alert, user: UserPref
   await bot.api.sendMessage(alert.userId, text, { parse_mode: 'HTML' });
   alert.lastTriggeredYmd = now.ymd;
   alert.triggeredAt = Date.now();
+  if (alert.condition.type === 'daily_digest' && alert.condition.scope === 'pair') {
+    try {
+      const snap = await getLatestRates(alert.base);
+      const r = snap.rates[alert.target];
+      if (typeof r === 'number') alert.prevRate = r;
+    } catch { /* best-effort */ }
+  }
   await updateAlert(alert);
   return true;
 }
@@ -180,12 +187,14 @@ async function buildPairDigestText(alert: Alert, user: UserPrefs): Promise<strin
   const current = latest.rates[alert.target];
   if (typeof current !== 'number') return null;
 
-  let prev: number | undefined;
-  try {
-    const yest = await getRateForDate(alert.base, yesterdayYmd());
-    const v = yest.rates[alert.target];
-    if (typeof v === 'number') prev = v;
-  } catch { /* ignore */ }
+  let prev: number | undefined = alert.prevRate;
+  if (prev === undefined) {
+    try {
+      const yest = await getRateForDate(alert.base, yesterdayYmd());
+      const v = yest.rates[alert.target];
+      if (typeof v === 'number' && v !== current) prev = v;
+    } catch { /* ignore */ }
+  }
 
   const pair = `${baseCur.iso}/${targetCur.iso}`;
   const priceStr = `${targetCur.symbol}${formatRate(current, user.lang)}`;

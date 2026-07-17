@@ -27,6 +27,7 @@ export type Alert = {
   active: boolean;
   baseline?: number;
   lastTriggeredYmd?: string;
+  prevRate?: number;
 };
 
 export type AlertCondition =
