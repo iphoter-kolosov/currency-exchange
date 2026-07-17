@@ -4,7 +4,7 @@ import { cancelKb, mainMenu } from '../keyboards.ts';
 import { handleConvertText, tryContextFollowUp } from './convert.ts';
 import { handleWatchAdd, handleWatchBase, handleSingleCurrencyAsBase } from './watch.ts';
 import { handleChartPair, sendChart } from './chart.ts';
-import { handleAlertsPair, handleAlertsValue, handleDigestPair, handleDigestTime } from './alerts.ts';
+import { handleAlertsPair, handleAlertsValue, handleDigestPair, handleDigestTime, tryLocalDigest } from './alerts.ts';
 import { handleTzCustom } from './settings.ts';
 import { resolveIntent, validateIntent, type Intent } from '../services/ai.ts';
 import { refreshUser } from '../bot.ts';
@@ -386,6 +386,8 @@ export function registerText(bot: Bot<BotCtx>): void {
       const last = await getLastIntent(ctx.from.id).catch(() => null);
       if (last && await tryContextFollowUp(ctx, text, last)) return;
     }
+
+    if (await tryLocalDigest(ctx, text)) return;
 
     if (await handleConvertText(ctx, text)) return;
     if (await handleSingleCurrencyAsBase(ctx, text)) return;

@@ -192,6 +192,49 @@ export function registerAlerts(bot: Bot<BotCtx>): void {
   });
 }
 
+const DAILY_KEYWORDS = /(?<!\p{L})(daily|каждый\s+день|каждодневно|every\s+day|ежедневно|каждое\s+утро|every\s+morning)(?!\p{L})/iu;
+const TIME_TOKEN_RE = /\b([01]?\d|2[0-3]):([0-5]\d)\b/;
+
+/** Local fast-path: "eur to usd 13:00 каждый день" → create daily digest
+ * without going through the LLM or multi-step wizard. Only fires when:
+ * - no active session mode
+ * - text contains a daily keyword
+ * - exactly two currencies can be extracted
+ * - a HH:MM time token is present */
+export async function tryLocalDigest(ctx: BotCtx, text: string): Promise<boolean> {
+  if (ctx.session.mode) return false;
+  if (!DAILY_KEYWORDS.test(text)) return false;
+
+  const timeMatch = text.match(TIME_TOKEN_RE);
+  if (!timeMatch) return false;
+
+  const tokens = text.toLowerCase().split(/[\s/,_-]+/);
+  const currencies: string[] = [];
+  for (const tok of tokens) {
+    if (tok === '') continue;
+    if (TIME_TOKEN_RE.test(tok)) continue;
+    const cur = findCurrency(tok);
+    if (cur && !currencies.includes(cur.code)) {
+      currencies.push(cur.code);
+      if (currencies.length === 2) break;
+    }
+  }
+
+  const hour = parseInt(timeMatch[1], 10);
+  const minute = parseInt(timeMatch[2], 10);
+
+  if (currencies.length === 2) {
+    await finalizeDigest(ctx, 'pair', currencies[0], currencies[1], hour, minute);
+    return true;
+  }
+  if (currencies.length === 0) {
+    await finalizeDigest(ctx, 'watchlist', 'all', 'all', hour, minute);
+    return true;
+  }
+
+  return false;
+}
+
 async function finalizeDigest(
   ctx: BotCtx,
   scope: 'pair' | 'watchlist',
