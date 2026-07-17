@@ -10,7 +10,7 @@ import {
   type AlertCondition,
 } from '../services/storage.ts';
 import { CURRENCY_BY_CODE, findCurrency } from '../data/currencies.ts';
-import { convert } from '../services/rates.ts';
+import { convert, getLatestRates } from '../services/rates.ts';
 import { t, tpl } from '../i18n/index.ts';
 import { alertsMenu, alertTypeMenu, cancelKb, digestScopeMenu, digestTimeMenu } from '../keyboards.ts';
 import { tzLabel } from '../services/timezones.ts';
@@ -245,6 +245,14 @@ async function finalizeDigest(
 ): Promise<void> {
   if (!ctx.from) return;
   try {
+    let prevRate: number | undefined;
+    if (scope === 'pair') {
+      try {
+        const snap = await getLatestRates(base);
+        const r = snap.rates[target];
+        if (typeof r === 'number') prevRate = r;
+      } catch { /* best-effort */ }
+    }
     const alert: Alert = {
       id: newId(),
       userId: ctx.from.id,
@@ -253,6 +261,7 @@ async function finalizeDigest(
       condition: { type: 'daily_digest', hour, minute, scope },
       createdAt: Date.now(),
       active: true,
+      prevRate,
     };
     await createAlert(alert);
     ctx.session.mode = undefined;
